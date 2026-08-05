@@ -10,6 +10,11 @@ import {
   ArrowRight,
   CheckCircle2,
   RefreshCw,
+  Calendar,
+  Edit3,
+  X,
+  Sliders,
+  Check,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -48,6 +53,7 @@ interface DashboardViewProps {
   selectedMonth: string;
   onNavigateToTab: (tabId: string) => void;
   onOpenManualModal: () => void;
+  onUpdateMonthData?: (monthKey: string, updated: Partial<MonthSummaryData>) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -58,8 +64,36 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   selectedMonth,
   onNavigateToTab,
   onOpenManualModal,
+  onUpdateMonthData,
 }) => {
-  const [timeRange, setTimeRange] = useState<'este-mes' | 'semana' | '3-meses' | 'ano'>('este-mes');
+  const [timeRange, setTimeRange] = useState<'este-mes' | 'semana' | '3-meses' | 'ano' | 'personalizado'>('este-mes');
+  const [customRange, setCustomRange] = useState<{ start: string; end: string }>({ start: '2026-08-01', end: '2026-08-31' });
+  const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+
+  // Quick edit form state
+  const [editIncome, setEditIncome] = useState(currentMonthData.totalIncome);
+  const [editExpenses, setEditExpenses] = useState(currentMonthData.totalExpenses);
+  const [editInvestments, setEditInvestments] = useState(currentMonthData.totalInvestments);
+
+  useEffect(() => {
+    setEditIncome(currentMonthData.totalIncome);
+    setEditExpenses(currentMonthData.totalExpenses);
+    setEditInvestments(currentMonthData.totalInvestments);
+  }, [currentMonthData]);
+
+  const handleSaveAdjustments = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (onUpdateMonthData) {
+      onUpdateMonthData(selectedMonth, {
+        totalIncome: Number(editIncome) || 0,
+        totalExpenses: Number(editExpenses) || 0,
+        totalInvestments: Number(editInvestments) || 0,
+      });
+    }
+    setIsAdjustModalOpen(false);
+  };
+
   const [aiRecommendations, setAiRecommendations] = useState<AIRecommendation[]>([]);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
 
@@ -110,7 +144,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 space-y-6 pb-12">
       {/* Abacaxi Pay Inspired Welcome & Range Selector */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card rounded-3xl p-6 border border-white/80">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 glass-card rounded-3xl p-6 border border-white/80">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-bold uppercase tracking-widest text-[#11310C]/60">
@@ -124,26 +158,58 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </h1>
         </div>
 
-        {/* Range Chips */}
-        <div className="flex items-center gap-1.5 p-1 bg-[#11310C]/5 rounded-2xl border border-[#11310C]/10 overflow-x-auto">
-          {[
-            { id: 'este-mes', label: 'Este Mês' },
-            { id: 'semana', label: 'Essa Semana' },
-            { id: '3-meses', label: 'Últimos 3 Mêses' },
-            { id: 'ano', label: 'Anual' },
-          ].map((chip) => (
+        {/* Action Controls & Range Filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Quick Edit Values Button */}
+          <button
+            onClick={() => setIsAdjustModalOpen(true)}
+            className="px-3.5 py-2 bg-white/80 hover:bg-white text-[#11310C] border border-[#11310C]/15 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-xs hover:border-[#C4C240]"
+            title="Ajustar valores do mês manualmente"
+          >
+            <Edit3 className="w-3.5 h-3.5 text-[#11310C]" />
+            <span>Ajustar Valores</span>
+          </button>
+
+          {/* Range Chips Pill Container */}
+          <div className="inline-flex items-center gap-1 p-1 bg-[#11310C]/5 rounded-2xl border border-[#11310C]/10 max-w-full flex-wrap sm:flex-nowrap">
+            {[
+              { id: 'este-mes', label: 'Este Mês' },
+              { id: 'semana', label: 'Essa Semana' },
+              { id: '3-meses', label: 'Últimos 3 Mêses' },
+              { id: 'ano', label: 'Anual' },
+            ].map((chip) => (
+              <button
+                key={chip.id}
+                onClick={() => setTimeRange(chip.id as any)}
+                className={`px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  timeRange === chip.id
+                    ? 'bg-[#11310C] text-[#FAFBF6] shadow-xs'
+                    : 'text-[#11310C]/80 hover:text-[#11310C]'
+                }`}
+              >
+                {chip.label}
+              </button>
+            ))}
+
+            {/* Calendar Icon Button Right Next to Anual */}
             <button
-              key={chip.id}
-              onClick={() => setTimeRange(chip.id as any)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                timeRange === chip.id
-                  ? 'bg-[#11310C] text-[#FAFBF6] shadow-xs'
-                  : 'text-[#11310C]/70 hover:text-[#11310C]'
+              onClick={() => {
+                setTimeRange('personalizado');
+                setIsCalendarModalOpen(true);
+              }}
+              title="Personalizar Período no Calendário"
+              className={`px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                timeRange === 'personalizado'
+                  ? 'bg-[#11310C] text-[#C4C240] shadow-xs'
+                  : 'text-[#11310C]/70 hover:text-[#11310C] hover:bg-white/50'
               }`}
             >
-              {chip.label}
+              <Calendar className="w-3.5 h-3.5 text-[#11310C]" />
+              <span className="hidden sm:inline">
+                {timeRange === 'personalizado' ? 'Personalizado' : ''}
+              </span>
             </button>
-          ))}
+          </div>
         </div>
       </div>
 
@@ -480,6 +546,165 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Custom Date Range Calendar Modal */}
+      {isCalendarModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[#FAFBF6] border border-[#11310C]/20 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-[#11310C]/10">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-[#11310C] text-[#C4C240] flex items-center justify-center">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <h3 className="text-lg font-extrabold text-[#11310C]">
+                  Personalizar Período
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsCalendarModalOpen(false)}
+                className="p-1.5 text-[#11310C]/60 hover:text-[#11310C] rounded-xl hover:bg-[#11310C]/5 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[#11310C]/70">
+              Escolha o intervalo de datas inicial e final para filtrar os indicadores e gráficos do seu painel:
+            </p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-[#11310C]/80">Data Inicial</label>
+                <input
+                  type="date"
+                  value={customRange.start}
+                  onChange={(e) => setCustomRange((prev) => ({ ...prev, start: e.target.value }))}
+                  className="w-full px-3 py-2 bg-white border border-[#11310C]/15 rounded-xl text-xs font-bold text-[#11310C] focus:outline-none focus:border-[#C4C240]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-[#11310C]/80">Data Final</label>
+                <input
+                  type="date"
+                  value={customRange.end}
+                  onChange={(e) => setCustomRange((prev) => ({ ...prev, end: e.target.value }))}
+                  className="w-full px-3 py-2 bg-white border border-[#11310C]/15 rounded-xl text-xs font-bold text-[#11310C] focus:outline-none focus:border-[#C4C240]"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setIsCalendarModalOpen(false)}
+                className="px-4 py-2 text-xs font-bold text-[#11310C]/70 hover:text-[#11310C] cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  setTimeRange('personalizado');
+                  setIsCalendarModalOpen(false);
+                }}
+                className="px-5 py-2.5 bg-[#11310C] text-[#C4C240] rounded-xl text-xs font-extrabold shadow-md hover:bg-[#11310C]/90 transition-all cursor-pointer flex items-center gap-2"
+              >
+                <Check className="w-4 h-4" />
+                Aplicar Filtro
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Adjust Month Values Quick Modal */}
+      {isAdjustModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[#FAFBF6] border border-[#11310C]/20 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-[#11310C]/10">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-[#C4C240]/30 text-[#11310C] flex items-center justify-center">
+                  <Sliders className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-[#11310C]">
+                    Ajustar Totais do Mês
+                  </h3>
+                  <p className="text-[11px] text-[#11310C]/60 font-semibold">{selectedMonth}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsAdjustModalOpen(false)}
+                className="p-1.5 text-[#11310C]/60 hover:text-[#11310C] rounded-xl hover:bg-[#11310C]/5 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[#11310C]/70">
+              Edite diretamente os valores acumulados para este mês. Isso atualizará os indicadores do painel imediatamente:
+            </p>
+
+            <form onSubmit={handleSaveAdjustments} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[#11310C]/80">Ganhos do Mês (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editIncome}
+                  onChange={(e) => setEditIncome(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-[#11310C]/15 rounded-xl text-sm font-extrabold text-[#11310C] focus:outline-none focus:border-[#C4C240]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[#11310C]/80">Gastos do Mês (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editExpenses}
+                  onChange={(e) => setEditExpenses(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-[#11310C]/15 rounded-xl text-sm font-extrabold text-[#E13513] focus:outline-none focus:border-[#E13513]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-[#11310C]/80">Investimentos Acumulados (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editInvestments}
+                  onChange={(e) => setEditInvestments(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-[#11310C]/15 rounded-xl text-sm font-extrabold text-[#11310C] focus:outline-none focus:border-[#C4C240]"
+                />
+              </div>
+
+              <div className="p-3 bg-[#11310C]/5 rounded-2xl border border-[#11310C]/10 flex items-center justify-between">
+                <span className="text-xs font-bold text-[#11310C]/70">Sobrou Calculado:</span>
+                <span className="text-sm font-black text-[#11310C]">
+                  {formatCurrency(editIncome - editExpenses)}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAdjustModalOpen(false)}
+                  className="px-4 py-2 text-xs font-bold text-[#11310C]/70 hover:text-[#11310C] cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-[#11310C] text-[#C4C240] rounded-xl text-xs font-extrabold shadow-md hover:bg-[#11310C]/90 transition-all cursor-pointer flex items-center gap-2"
+                >
+                  <Check className="w-4 h-4" />
+                  Salvar Alterações
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

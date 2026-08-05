@@ -186,6 +186,28 @@ export function App() {
     });
   };
 
+  const handleUpdateMonthSummary = (monthKey: string, updated: Partial<MonthSummaryData>) => {
+    setMonthsData((prev) => {
+      const current = prev[monthKey] || prev['Agosto 2026'];
+      const totalIncome = updated.totalIncome !== undefined ? updated.totalIncome : current.totalIncome;
+      const totalExpenses = updated.totalExpenses !== undefined ? updated.totalExpenses : current.totalExpenses;
+      const totalInvestments = updated.totalInvestments !== undefined ? updated.totalInvestments : current.totalInvestments;
+      const leftover = totalIncome - totalExpenses;
+
+      return {
+        ...prev,
+        [monthKey]: {
+          ...current,
+          ...updated,
+          totalIncome,
+          totalExpenses,
+          totalInvestments,
+          leftover,
+        },
+      };
+    });
+  };
+
   const handleAddSpreadsheet = (sheet: SpreadsheetConnection) => {
     setSpreadsheets((prev) => [sheet, ...prev]);
   };
@@ -228,6 +250,7 @@ export function App() {
             selectedMonth={selectedMonth}
             onNavigateToTab={setActiveTab}
             onOpenManualModal={() => setIsManualModalOpen(true)}
+            onUpdateMonthData={handleUpdateMonthSummary}
           />
         )}
 
