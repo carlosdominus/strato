@@ -174,59 +174,69 @@ export const DividasView: React.FC<DividasViewProps> = ({
           </div>
         </div>
 
-        {/* Ativos: Empréstimos a Receber (Devedores) */}
+        {/* Ativos: Empréstimos a Receber (Devedores - Planilha Dedicada) */}
         <div className="glass-card rounded-3xl p-6 border border-white/90 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-[#11310C]/10">
             <div>
               <h3 className="text-lg font-extrabold text-[#11310C]">
-                Empréstimos <span className="font-serif italic font-bold text-xl text-[#C4C240]">a Receber</span>
+                Planilha de <span className="font-serif italic font-bold text-xl text-[#C4C240]">Devedores</span>
               </h3>
-              <p className="text-xs text-[#11310C]/60">Pessoas e parceiros que lhe devem dinheiro</p>
+              <p className="text-xs text-[#11310C]/60">Sincronizado com colunas B, C, D, E, G, H, I da planilha de devedores</p>
             </div>
             <span className="text-xs font-extrabold text-emerald-900 bg-emerald-100 px-2.5 py-1 rounded-full">
-              {debtors.length} devedores
+              {debtors.length} registros
             </span>
           </div>
 
           <div className="space-y-3">
             {debtors.map((debtor) => {
-              const isOverdue = debtor.status === 'atrasado';
-              const isPaid = debtor.status === 'pago';
+              const isPaid = debtor.remainingAmount <= 0;
+              const isPartial = debtor.totalPaid > 0 && debtor.remainingAmount > 0;
 
               return (
                 <div
                   key={debtor.id}
-                  className="p-4 rounded-2xl bg-white/90 border border-[#11310C]/10 space-y-2 shadow-xs hover:border-[#C4C240] transition-all"
+                  className="p-5 rounded-3xl bg-white/90 border border-[#11310C]/15 space-y-3 shadow-xs hover:border-[#C4C240] transition-all"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-start justify-between">
                     <div>
-                      <h4 className="font-extrabold text-sm text-[#11310C]">{debtor.borrowerName}</h4>
-                      <p className="text-xs text-[#11310C]/60 font-medium">{debtor.description}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-[#11310C]/50">Devedor (Col B)</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                          debtor.movement?.toLowerCase().includes('pagou') ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900'
+                        }`}>
+                          {debtor.movement || 'Emprestado'} (Col E)
+                        </span>
+                      </div>
+                      <h4 className="font-extrabold text-base text-[#11310C] mt-0.5">{debtor.borrowerName}</h4>
+                      <p className="text-xs text-[#11310C]/70 font-medium mt-0.5">{debtor.description || 'Sem descrição'} (Col C)</p>
                     </div>
 
                     <div className="text-right">
                       <span className="text-[10px] font-bold text-[#11310C]/50 uppercase block">
-                        A Receber
+                        Saldo Restante (Col I)
                       </span>
-                      <span className="text-sm font-extrabold text-emerald-800">
+                      <span className={`text-base font-extrabold ${isPaid ? 'text-emerald-800' : 'text-[#E13513]'}`}>
                         {formatCurrency(debtor.remainingAmount)}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-xs font-bold pt-2 border-t border-[#11310C]/10">
-                    <span className="text-[#11310C]/70 text-[11px]">Vencimento: {debtor.dueDate}</span>
-                    <span
-                      className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase ${
-                        isPaid
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : isOverdue
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-amber-100 text-amber-800'
-                      }`}
-                    >
-                      {isPaid ? 'Pago' : isOverdue ? 'Atrasado' : 'Em Dia'}
-                    </span>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold pt-2 border-t border-[#11310C]/10">
+                    <div className="p-2 rounded-2xl bg-white border border-[#11310C]/10">
+                      <span className="text-[10px] text-[#11310C]/60 uppercase block">Valor Lançado (Col D)</span>
+                      <span className="text-[#11310C] font-extrabold">{formatCurrency(debtor.transactionAmount || 0)}</span>
+                    </div>
+
+                    <div className="p-2 rounded-2xl bg-white border border-[#11310C]/10">
+                      <span className="text-[10px] text-emerald-700 uppercase block">Total Pago (Col G)</span>
+                      <span className="text-emerald-800 font-extrabold">{formatCurrency(debtor.totalPaid || 0)}</span>
+                    </div>
+
+                    <div className="p-2 rounded-2xl bg-white border border-[#11310C]/10">
+                      <span className="text-[10px] text-[#E13513] uppercase block">Total Emprestado (Col H)</span>
+                      <span className="text-[#E13513] font-extrabold">{formatCurrency(debtor.totalBorrowed || 0)}</span>
+                    </div>
                   </div>
                 </div>
               );

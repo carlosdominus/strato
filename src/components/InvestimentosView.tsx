@@ -214,43 +214,64 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
             </span>
           </div>
 
-          {/* Table */}
+          {/* Table with all 10 columns */}
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-[#11310C]">
               <thead>
                 <tr className="border-b border-[#11310C]/10 text-[10px] font-bold uppercase tracking-wider text-[#11310C]/60">
-                  <th className="pb-2">Ativo</th>
-                  <th className="pb-2 text-right">Aplicado</th>
-                  <th className="pb-2 text-right">Valor Atual</th>
-                  <th className="pb-2 text-right">Rentabilidade</th>
-                  <th className="pb-2 text-right">Proventos/mês</th>
+                  <th className="pb-2">Ticker (Col A)</th>
+                  <th className="pb-2">Nome (Col B)</th>
+                  <th className="pb-2">Classe (Col C)</th>
+                  <th className="pb-2 text-right">Ações (Col D)</th>
+                  <th className="pb-2 text-right">P. Médio (Col E)</th>
+                  <th className="pb-2 text-right">P. Atual (Col F)</th>
+                  <th className="pb-2 text-right">Var $ (Col G)</th>
+                  <th className="pb-2 text-right">Var % (Col H)</th>
+                  <th className="pb-2 text-right">USD Aplicado (Col I)</th>
+                  <th className="pb-2 text-right">USD Atual (Col J)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#11310C]/5 font-semibold">
                 {investments.map((inv) => {
-                  const usdVal = inv.currentValue / usdExchangeRate;
+                  const isPositive = inv.variationDollar >= 0;
 
                   return (
                     <tr key={inv.id} className="hover:bg-white/60 transition-all">
-                      <td className="py-3">
-                        <div className="font-extrabold text-[#11310C]">{inv.name}</div>
-                        <span className="text-[10px] text-emerald-800 font-bold block">
-                          ${usdVal.toFixed(2)} USD
+                      <td className="py-3 font-mono font-extrabold text-[#11310C]">
+                        {inv.ticker}
+                      </td>
+                      <td className="py-3 font-bold text-[#11310C] max-w-[140px] truncate">
+                        {inv.name}
+                      </td>
+                      <td className="py-3 text-[10px]">
+                        <span className="px-2 py-0.5 rounded-full bg-[#11310C]/10 text-[#11310C] font-bold">
+                          {inv.assetClass || 'Ação'}
                         </span>
+                      </td>
+                      <td className="py-3 text-right font-extrabold">
+                        {inv.sharesCount}
                       </td>
                       <td className="py-3 text-right text-[#11310C]/80">
-                        {formatCurrency(inv.amountInvested)}
+                        ${inv.avgPrice.toFixed(2)}
                       </td>
                       <td className="py-3 text-right font-extrabold text-[#11310C]">
-                        {formatCurrency(inv.currentValue)}
+                        ${inv.currentPrice.toFixed(2)}
+                      </td>
+                      <td className={`py-3 text-right font-extrabold ${isPositive ? 'text-emerald-800' : 'text-[#E13513]'}`}>
+                        {isPositive ? '+' : ''}${inv.variationDollar.toFixed(2)}
                       </td>
                       <td className="py-3 text-right">
-                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#C4C240]/25 text-[#11310C]">
-                          {formatPercent(inv.yieldPercent)}
+                        <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                          isPositive ? 'bg-emerald-100 text-emerald-900' : 'bg-red-100 text-red-900'
+                        }`}>
+                          {isPositive ? '+' : ''}{inv.variationPercent.toFixed(2)}%
                         </span>
                       </td>
-                      <td className="py-3 text-right text-emerald-800 font-extrabold">
-                        {inv.monthlyDividend > 0 ? formatCurrency(inv.monthlyDividend) : '-'}
+                      <td className="py-3 text-right text-[#11310C]/70">
+                        ${inv.dollarsApplied.toFixed(2)}
+                      </td>
+                      <td className="py-3 text-right font-extrabold text-emerald-900">
+                        ${inv.dollarsCurrent.toFixed(2)}
                       </td>
                     </tr>
                   );

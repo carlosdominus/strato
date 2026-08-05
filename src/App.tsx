@@ -23,7 +23,7 @@ import {
   INITIAL_DEBTORS,
   INITIAL_FINANCIAL_GOALS,
 } from './data/mockData';
-import { Transaction, SpreadsheetConnection, FinancialGoal, Debtor } from './types';
+import { Transaction, SpreadsheetConnection, FinancialGoal, Debtor, MonthSummaryData } from './types';
 import { initAuth, googleSignIn, logout, getAccessToken } from './lib/firebase';
 import { User } from 'firebase/auth';
 

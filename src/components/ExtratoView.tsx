@@ -26,20 +26,35 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
 }) => {
   const [filterType, setFilterType] = useState<'todos' | TransactionType>('todos');
   const [filterCategory, setFilterCategory] = useState<string>('todas');
+  const [filterAccount, setFilterAccount] = useState<string>('todas');
+  const [filterMethod, setFilterMethod] = useState<string>('todos');
+  const [filterDay, setFilterDay] = useState<string>('todos');
   const [localSearch, setLocalSearch] = useState<string>('');
 
-  // Categories list
-  const categories = Array.from(new Set(transactions.map((t) => t.category)));
+  // Categories & Accounts lists
+  const categories = Array.from(new Set(transactions.map((t) => t.category))).filter(Boolean);
+  const accounts = Array.from(new Set(transactions.map((t) => t.account || 'Geral'))).filter(Boolean);
+  const paymentMethods = Array.from(new Set(transactions.map((t) => t.paymentMethod || 'PIX'))).filter(Boolean);
+  const daysInMonth = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
 
   const filteredTransactions = transactions.filter((tx) => {
     const matchesType = filterType === 'todos' || tx.type === filterType;
     const matchesCategory = filterCategory === 'todas' || tx.category === filterCategory;
+    const matchesAccount = filterAccount === 'todas' || (tx.account || 'Geral') === filterAccount;
+    const matchesMethod = filterMethod === 'todos' || (tx.paymentMethod || '') === filterMethod;
+    
+    let matchesDay = true;
+    if (filterDay !== 'todos' && tx.date) {
+      const dayPart = tx.date.split('-')[2] || tx.date.split('/')[0];
+      matchesDay = parseInt(dayPart, 10) === parseInt(filterDay, 10);
+    }
+
     const matchesSearch =
       tx.description.toLowerCase().includes(localSearch.toLowerCase()) ||
-      tx.paymentMethod.toLowerCase().includes(localSearch.toLowerCase()) ||
-      tx.sourceSheet.toLowerCase().includes(localSearch.toLowerCase());
+      (tx.paymentMethod && tx.paymentMethod.toLowerCase().includes(localSearch.toLowerCase())) ||
+      (tx.account && tx.account.toLowerCase().includes(localSearch.toLowerCase()));
 
-    return matchesType && matchesCategory && matchesSearch;
+    return matchesType && matchesCategory && matchesAccount && matchesMethod && matchesDay && matchesSearch;
   });
 
   const totalIncomeInView = filteredTransactions
@@ -180,16 +195,44 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
             ))}
           </div>
 
-          {/* Category Dropdown */}
+          {/* Account Dropdown */}
           <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
+            value={filterAccount}
+            onChange={(e) => setFilterAccount(e.target.value)}
             className="px-3 py-1.5 rounded-2xl bg-white/90 border border-[#11310C]/15 text-xs font-bold text-[#11310C] focus:outline-none cursor-pointer"
           >
-            <option value="todas">Todas as Categorias</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
+            <option value="todas">Todas as Contas (Col D)</option>
+            {accounts.map((acc) => (
+              <option key={acc} value={acc}>
+                {acc}
+              </option>
+            ))}
+          </select>
+
+          {/* Payment Method Dropdown */}
+          <select
+            value={filterMethod}
+            onChange={(e) => setFilterMethod(e.target.value)}
+            className="px-3 py-1.5 rounded-2xl bg-white/90 border border-[#11310C]/15 text-xs font-bold text-[#11310C] focus:outline-none cursor-pointer"
+          >
+            <option value="todos">Todos os Tipos (Col E)</option>
+            {paymentMethods.map((pm) => (
+              <option key={pm} value={pm}>
+                {pm}
+              </option>
+            ))}
+          </select>
+
+          {/* Day Dropdown */}
+          <select
+            value={filterDay}
+            onChange={(e) => setFilterDay(e.target.value)}
+            className="px-3 py-1.5 rounded-2xl bg-white/90 border border-[#11310C]/15 text-xs font-bold text-[#11310C] focus:outline-none cursor-pointer"
+          >
+            <option value="todos">Todos os Dias (Col A)</option>
+            {daysInMonth.map((d) => (
+              <option key={d} value={d}>
+                Dia {d}
               </option>
             ))}
           </select>
@@ -202,12 +245,12 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
           <table className="w-full text-left text-xs text-[#11310C]">
             <thead>
               <tr className="border-b border-[#11310C]/10 text-[10px] font-bold uppercase tracking-wider text-[#11310C]/60">
-                <th className="pb-3">Data</th>
-                <th className="pb-3">Descrição</th>
+                <th className="pb-3">Data (Col A)</th>
+                <th className="pb-3">Descrição (Col C)</th>
+                <th className="pb-3">Conta (Col D)</th>
+                <th className="pb-3">Tipo / Cartão (Col E)</th>
                 <th className="pb-3">Categoria</th>
-                <th className="pb-3">Meio / Forma</th>
-                <th className="pb-3">Planilha Origem</th>
-                <th className="pb-3 text-right">Valor (R$)</th>
+                <th className="pb-3 text-right">Valor (Col B)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#11310C]/5 font-semibold">
@@ -241,14 +284,13 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
                     </td>
                     <td className="py-3.5">
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#11310C]/10 text-[#11310C]">
-                        {tx.category}
+                        {tx.account || 'Geral'}
                       </span>
                     </td>
-                    <td className="py-3.5 text-[#11310C]/80">{tx.paymentMethod}</td>
+                    <td className="py-3.5 text-[#11310C]/90 font-bold">{tx.paymentMethod || 'PIX'}</td>
                     <td className="py-3.5">
                       <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#11310C]/60 bg-white px-2 py-0.5 rounded-md border border-[#11310C]/10">
-                        <FileSpreadsheet className="w-3 h-3 text-[#C4C240]" />
-                        {tx.sourceSheet}
+                        {tx.category}
                       </span>
                     </td>
                     <td

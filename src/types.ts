@@ -2,12 +2,13 @@ export type TransactionType = 'income' | 'expense' | 'investment';
 
 export interface Transaction {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD or DD/MM/YYYY
   description: string;
   category: string;
   amount: number;
   type: TransactionType;
-  paymentMethod: string;
+  paymentMethod: string; // Coluna E: Pix, Cartão ML, Cartão Picpay PJ, Cartão Nubank
+  account?: string; // Coluna D: Nubank PF, Nubank PJ, PicPay PF, PicPay PJ, Mercado Pago
   sourceSheet: string;
   status: 'concluido' | 'pendente';
   notes?: string;
@@ -15,23 +16,45 @@ export interface Transaction {
 
 export interface CreditCardSheet {
   id: string;
-  name: string;
+  name: string; // Coluna A: Cartão ML, Cartão PicPay PJ, Cartão Nubank
   bank: string;
-  lastDigits: string;
-  closingDay: number; // Day of month when invoice closes
-  dueDay: number; // Day of month when invoice is due
-  currentInvoice: number;
+  lastDigits?: string;
+  closingDay: number; // Coluna B: Fecha (1, 2, 29, 3)
+  dueDay: number; // Coluna C: Vence (8, 5, 10)
+  currentInvoice: number; // Dynamic sum from Extrato for this card
   limit: number;
-  status: 'aberta' | 'fechada';
+  status?: 'aberta' | 'fechada';
+}
+
+export interface Subscription {
+  id: string;
+  status: 'ativa' | 'pausada'; // Coluna A: status
+  serviceName: string; // Coluna C: descrição
+  category: string;
+  monthlyPrice: number; // Coluna B: valor
+  paymentCard: string; // Coluna D: cartão cobrado
+  renewalDay: number; // Coluna E: data de cobrança
+  active: boolean; // Computed from status === 'ativa'
+  cancelRecommendation?: boolean;
 }
 
 export interface Investment {
   id: string;
-  name: string;
-  category: 'Renda Fixa' | 'Ações' | 'FIIs' | 'Cripto' | 'Internacional';
-  amountInvested: number;
+  ticker: string; // Coluna A: Tiket
+  companyName: string; // Coluna B: Nome da Empresa
+  assetClass: string; // Coluna C: Classe
+  sharesCount: number; // Coluna D: Número de ações
+  averagePrice: number; // Coluna E: Preço médio
+  currentPrice: number; // Coluna F: Preço atual
+  usdChange: number; // Coluna G: Variação em dólar
+  percentChange: number; // Coluna H: Variação em porcentagem
+  usdApplied: number; // Coluna I: Dólares aplicados
+  usdCurrent: number; // Coluna J: Dólares atuais
+  name: string; // Display title e.g. "Name (Ticker)"
+  category?: 'Renda Fixa' | 'Ações' | 'FIIs' | 'Cripto' | 'Internacional' | string;
+  amountInvested: number; // BRL or USD equivalent
   currentValue: number;
-  yieldPercent: number; // e.g. 1.15% monthly or 14.2% annual
+  yieldPercent: number;
   monthlyDividend: number;
 }
 
@@ -41,24 +64,14 @@ export interface Debt {
   type: string;
   totalAmount: number;
   remainingAmount: number;
-  interestRate: string; // e.g. "0.8% a.m."
+  interestRate: string;
   monthlyPayment: number;
   dueDate: string;
 }
 
-export interface Subscription {
-  id: string;
-  serviceName: string;
-  category: string;
-  monthlyPrice: number;
-  renewalDay: number;
-  active: boolean;
-  cancelRecommendation?: boolean;
-}
-
 export interface SpreadsheetConnection {
   id: string;
-  type: 'cartoes' | 'extrato' | 'investimentos' | 'dividas' | 'assinaturas' | 'total_mes';
+  type: 'cartoes' | 'extrato' | 'investimentos' | 'dividas' | 'assinaturas' | 'total_mes' | 'devedores';
   title: string;
   description: string;
   lastSync: string;
@@ -68,16 +81,22 @@ export interface SpreadsheetConnection {
   fileName?: string;
 }
 
+export interface AccountBalanceRow {
+  accountName: string;
+  balances: Record<string, number>; // Month name e.g. "Maio 2026": 8036.06
+}
+
 export interface MonthSummaryData {
   month: string; // e.g. "Agosto 2026"
-  totalMoney: number; // Total de dinheiro no mês
-  totalIncome: number; // Renda / Ganhos
-  totalExpenses: number; // Gastos / Saídas
+  totalMoney: number; // Total de dinheiro no mês de todas as contas
+  totalIncome: number; // Renda / Ganhos do mês
+  totalExpenses: number; // Gastos / Saídas do mês
   leftover: number; // Sobra (Income - Expenses)
   totalInvestments: number; // Investimentos acumulados
   totalDebts: number; // Dívidas pendentes
   activeSubscriptionsCount: number;
   monthlyGrowthPercent: number;
+  accountBalances?: Record<string, number>; // Breakdown per account for this month
 }
 
 export interface AIRecommendation {
@@ -97,12 +116,14 @@ export interface BankAccount {
 
 export interface Debtor {
   id: string;
-  borrowerName: string;
-  description: string;
-  totalAmount: number;
-  amountPaid: number;
-  remainingAmount: number;
-  dueDate: string;
+  borrowerName: string; // Coluna B: Devedor
+  description: string; // Coluna C: Descrição do pagamento/empréstimo
+  transactionAmount: number; // Coluna D: Valor
+  movement: 'pagou' | 'emprestado' | string; // Coluna E: Se a pessoa pagou ou pegou emprestado
+  totalPaid: number; // Coluna G: Total pago
+  totalBorrowed: number; // Coluna H: Total emprestado
+  remainingAmount: number; // Coluna I: Saldo restante
+  dueDate?: string;
   status: 'pendente' | 'parcial' | 'quitado';
   sheetUrl?: string;
   notes?: string;

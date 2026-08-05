@@ -52,6 +52,7 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
             amount: Math.abs(parseFloat(row.Valor || row.amount || row.ValorR$ || '0')),
             type: (row.Tipo || '').toLowerCase().includes('entrada') || (parseFloat(row.Valor || '0') > 0) ? 'income' : 'expense',
             paymentMethod: row.Forma || 'Planilha CSV',
+            account: row.Conta || row.account || 'Geral',
             sourceSheet: file.name,
             status: 'concluido',
           }));

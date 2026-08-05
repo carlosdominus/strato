@@ -77,7 +77,7 @@ async function startServer() {
           id: 'sheet-cartoes',
           type: 'cartoes',
           title: 'Cartões & Fechamentos',
-          url: 'https://docs.google.com/spreadsheets/d/1X2z-2WEBUwn7mXRYa7oiJhh7rgdCZ6aiYXk8HArhG-M/export?format=csv&gid=0',
+          url: 'https://docs.google.com/spreadsheets/d/1X2z-2WEBUwn7mXRYa7oiJhh7rgdCZ6aiYXk8HArhG-M/export?format=csv&gid=66211996',
         },
         {
           id: 'sheet-assinaturas',
@@ -92,22 +92,27 @@ async function startServer() {
           url: 'https://docs.google.com/spreadsheets/d/1Y2hEw_g4tPKK9dWP5LDgTqKzsExSAZcoQ5ZvZunP9x4/export?format=csv&gid=0',
         },
         {
-          id: 'sheet-investimentos-dolar',
-          type: 'investimentos',
-          title: 'Investimentos em Dólar',
-          url: 'https://docs.google.com/spreadsheets/d/1fv-MsaKURTBGIB8a3UWfLNKa5Yx6AfHXWTTYPZ1iB3c/export?format=csv&gid=0',
+          id: 'sheet-devedores',
+          type: 'devedores',
+          title: 'Registro de Devedores',
+          url: 'https://docs.google.com/spreadsheets/d/1iSvoywDpT7uq8yJH4RGBPw9U8JtC9AkRST7JZMwDQXc/export?format=csv&gid=619733660',
         },
         {
-          id: 'sheet-acoes-eua',
+          id: 'sheet-investimentos',
           type: 'investimentos',
-          title: 'Preço Médio de Ações nos EUA',
-          url: 'https://docs.google.com/spreadsheets/d/1fv-MsaKURTBGIB8a3UWfLNKa5Yx6AfHXWTTYPZ1iB3c/export?format=csv&gid=1397919368',
+          title: 'Investimentos',
+          url: 'https://docs.google.com/spreadsheets/d/1fv-MsaKURTBGIB8a3UWfLNKa5Yx6AfHXWTTYPZ1iB3c/export?format=csv&gid=0',
         }
       ];
 
       const fetchResults: any[] = [];
-      let parsedInvestmentsUSD: any[] = [];
+      let parsedInvestments: any[] = [];
       let parsedExtratoTransactions: any[] = [];
+      let parsedCards: any[] = [];
+      let parsedSubscriptions: any[] = [];
+      let parsedTotaisMatrix: any = null;
+      let parsedDebtors: any[] = [];
+
       let liveTotalIncome = 0;
       let liveTotalExpenses = 0;
 
@@ -123,7 +128,7 @@ async function startServer() {
               fetchResults.push({
                 ...sheet,
                 status: 'pendente',
-                message: 'Autenticado com a conta proprietária gf.carlos023@gmail.com.',
+                message: 'Autenticado com a conta proprietária. Faça login no Google para visualizar.',
                 httpCode: 401,
               });
               continue;
@@ -132,93 +137,216 @@ async function startServer() {
             const rows = parseCsvToRows(csvText);
             if (rows.length < 2) continue;
 
-            const header = rows[0];
             const dataRows = rows.slice(1);
-            const { dateIdx, descIdx, categoryIdx, amountIdx, typeIdx } = detectColumnIndexes(header);
 
             if (sheet.id === 'sheet-extrato') {
               dataRows.forEach((cols, index) => {
-                const date = cols[dateIdx] || '2026-08-01';
-                const description = cols[descIdx] || 'Lançamento';
-                const category = cols[categoryIdx] || 'Geral';
-                const rawValStr = cols[amountIdx] || '0';
+                if (cols.length < 2 || !cols[0]) return;
+
+                const rawDate = cols[0] || '';
+                // Format DD/MM/YYYY to YYYY-MM-DD
+                let isoDate = '2026-08-01';
+                if (rawDate.includes('/')) {
+                  const parts = rawDate.split('/');
+                  if (parts.length === 3) {
+                    const day = parts[0].padStart(2, '0');
+                    const month = parts[1].padStart(2, '0');
+                    const year = parts[2];
+                    isoDate = `${year}-${month}-${day}`;
+                  }
+                } else if (rawDate.includes('-')) {
+                  isoDate = rawDate;
+                }
+
+                const rawValStr = cols[1] || '0';
                 const rawAmount = parseCleanNumber(rawValStr);
-                const typeStr = cols[typeIdx] || (rawAmount >= 0 ? 'Receita' : 'Despesa');
+                const description = cols[2] || 'Sem descrição';
+                const account = cols[3] || 'Geral';
+                const paymentMethod = cols[4] || 'PIX';
+
+                const isIncome = rawAmount > 0;
                 const amount = Math.abs(rawAmount);
 
-                const isReceita = rawAmount > 0 || typeStr.toLowerCase().includes('receita') || typeStr.toLowerCase().includes('entrada') || typeStr.toLowerCase().includes('ganho');
-
-                if (isReceita) {
+                if (isIncome) {
                   liveTotalIncome += amount;
                 } else if (amount > 0) {
                   liveTotalExpenses += amount;
                 }
 
+                // Categorization helper
+                const descLower = description.toLowerCase();
+                let category = 'Geral';
+                if (descLower.includes('salario') || descLower.includes('salário') || descLower.includes('comissão') || descLower.includes('payt')) {
+                  category = 'Salário & Renda';
+                } else if (descLower.includes('gasolina') || descLower.includes('uber') || descLower.includes('pedagio') || descLower.includes('pedágio')) {
+                  category = 'Transporte';
+                } else if (descLower.includes('mercado') || descLower.includes('fort') || descLower.includes('padaria') || descLower.includes('burguer') || descLower.includes('pizz')) {
+                  category = 'Alimentação';
+                } else if (descLower.includes('tim') || descLower.includes('inter') || descLower.includes('luz')) {
+                  category = 'Moradia & Contas';
+                } else if (descLower.includes('psicó') || descLower.includes('remédio') || descLower.includes('siso')) {
+                  category = 'Saúde & Bem-Estar';
+                } else if (descLower.includes('meli+') || descLower.includes('disney') || descLower.includes('spotify') || descLower.includes('tv')) {
+                  category = 'Assinaturas & Lazer';
+                }
+
                 parsedExtratoTransactions.push({
-                  id: `sheet-tx-${index}`,
-                  date,
+                  id: `tx-sheet-${index}`,
+                  date: isoDate,
                   description,
                   category,
                   amount,
-                  type: isReceita ? 'Receita' : 'Despesa',
-                  paymentMethod: 'Google Sheets Sincronizado',
+                  type: isIncome ? 'income' : 'expense',
+                  account,
+                  paymentMethod,
+                  sourceSheet: 'Google Sheets (Extrato)',
+                  status: 'concluido'
                 });
               });
             }
 
-            if (sheet.id === 'sheet-investimentos-dolar' || sheet.id === 'sheet-acoes-eua') {
-              const headersLower = header.map(h => h.toLowerCase());
-              const tickerIdx = headersLower.findIndex(h => h.includes('ticker') || h.includes('código') || h.includes('codigo') || h.includes('simbolo') || h.includes('symbol')) !== -1 
-                ? headersLower.findIndex(h => h.includes('ticker') || h.includes('código') || h.includes('codigo') || h.includes('simbolo') || h.includes('symbol')) 
-                : 0;
-
-              const nameIdx = headersLower.findIndex(h => h.includes('nome') || h.includes('empresa') || h.includes('ação') || h.includes('acao') || h.includes('asset')) !== -1
-                ? headersLower.findIndex(h => h.includes('nome') || h.includes('empresa') || h.includes('ação') || h.includes('acao') || h.includes('asset'))
-                : 1;
-
-              const appliedIdx = headersLower.findIndex(h => h.includes('aplicad') || h.includes('investid') || h.includes('custo') || h.includes('médio') || h.includes('medio')) !== -1
-                ? headersLower.findIndex(h => h.includes('aplicad') || h.includes('investid') || h.includes('custo') || h.includes('médio') || h.includes('medio'))
-                : Math.min(8, header.length - 1);
-
-              const currentIdx = headersLower.findIndex(h => h.includes('atual') || h.includes('posição') || h.includes('posicao') || h.includes('mercado') || h.includes('total')) !== -1
-                ? headersLower.findIndex(h => h.includes('atual') || h.includes('posição') || h.includes('posicao') || h.includes('mercado') || h.includes('total'))
-                : Math.min(9, header.length - 1);
-
+            if (sheet.id === 'sheet-cartoes') {
               dataRows.forEach((cols, index) => {
-                const ticker = cols[tickerIdx] || '';
-                const name = cols[nameIdx] || ticker;
-                const usdApplied = parseCleanNumber(cols[appliedIdx]);
-                const usdCurrent = parseCleanNumber(cols[currentIdx]);
+                if (!cols[0]) return;
+                const name = cols[0];
+                const closingDay = parseInt(cols[1] || '1', 10) || 1;
+                const dueDay = parseInt(cols[2] || '10', 10) || 10;
 
-                if (ticker && ticker.toUpperCase() !== 'TICKER') {
-                  parsedInvestmentsUSD.push({
-                    id: `inv-usd-${sheet.id}-${index}`,
-                    name: `${name} (${ticker})`,
-                    category: 'Internacional',
-                    amountInvested: Math.round(usdApplied * 5.60),
-                    currentValue: Math.round(usdCurrent * 5.60),
-                    yieldPercent: usdApplied > 0 ? parseFloat((((usdCurrent - usdApplied) / usdApplied) * 100).toFixed(2)) : 0,
-                    monthlyDividend: 0,
-                    usdApplied,
-                    usdCurrent,
-                    ticker,
-                    classe: 'STOCK'
-                  });
-                }
+                parsedCards.push({
+                  id: `card-sheet-${index}`,
+                  name,
+                  bank: name.includes('Nubank') ? 'Nubank' : name.includes('PicPay') ? 'PicPay' : 'Mercado Pago',
+                  closingDay,
+                  dueDay,
+                  currentInvoice: 0, // Calculated dynamically from extrato
+                  limit: 25000,
+                  status: 'aberta'
+                });
+              });
+            }
+
+            if (sheet.id === 'sheet-assinaturas') {
+              dataRows.forEach((cols, index) => {
+                if (!cols[1] && !cols[2]) return;
+                const statusStr = (cols[0] || 'Ativa').trim();
+                const isActive = statusStr.toLowerCase().includes('ativa');
+                const monthlyPrice = parseCleanNumber(cols[1]);
+                const serviceName = cols[2] || 'Assinatura';
+                const paymentCard = cols[3] || 'Cartão';
+                const renewalDayStr = cols[4] || '1';
+                const renewalDay = parseInt(renewalDayStr.replace(/\D/g, '') || '1', 10);
+
+                parsedSubscriptions.push({
+                  id: `sub-sheet-${index}`,
+                  status: isActive ? 'ativa' : 'pausada',
+                  serviceName,
+                  category: 'Recorrentes & Fixos',
+                  monthlyPrice,
+                  paymentCard,
+                  renewalDay,
+                  active: isActive,
+                  cancelRecommendation: !isActive
+                });
+              });
+            }
+
+            if (sheet.id === 'sheet-totais') {
+              // Parse Header row for Months
+              const headers = rows[0];
+              const months = headers.slice(1).filter(h => h && !h.toLowerCase().includes('meta'));
+              
+              const accountRows: any[] = [];
+              dataRows.forEach((cols) => {
+                const accountName = cols[0];
+                if (!accountName || accountName.toLowerCase() === 'data' || accountName.toLowerCase() === 'total') return;
+
+                const balances: Record<string, number> = {};
+                months.forEach((mName, idx) => {
+                  const valStr = cols[idx + 1] || '0';
+                  balances[mName] = parseCleanNumber(valStr);
+                });
+
+                accountRows.push({ accountName, balances });
+              });
+
+              parsedTotaisMatrix = { months, accounts: accountRows };
+            }
+
+            if (sheet.id === 'sheet-devedores') {
+              dataRows.forEach((cols, index) => {
+                if (!cols[1]) return;
+                const borrowerName = cols[1];
+                const description = cols[2] || '';
+                const transactionAmount = parseCleanNumber(cols[3]);
+                const movement = cols[4] || 'emprestado';
+                const totalPaid = parseCleanNumber(cols[6]);
+                const totalBorrowed = parseCleanNumber(cols[7]);
+                const remainingAmount = parseCleanNumber(cols[8]);
+
+                parsedDebtors.push({
+                  id: `debtor-sheet-${index}`,
+                  borrowerName,
+                  description,
+                  transactionAmount,
+                  movement,
+                  totalPaid,
+                  totalBorrowed,
+                  remainingAmount: remainingAmount || Math.max(0, totalBorrowed - totalPaid),
+                  status: remainingAmount <= 0 ? 'quitado' : totalPaid > 0 ? 'parcial' : 'pendente'
+                });
+              });
+            }
+
+            if (sheet.id === 'sheet-investimentos') {
+              dataRows.forEach((cols, index) => {
+                if (!cols[0] || cols[0].toUpperCase() === 'TIKET' || cols[0].toUpperCase() === 'TICKER') return;
+                const ticker = cols[0];
+                const companyName = cols[1] || ticker;
+                const assetClass = cols[2] || 'Ações EUA';
+                const sharesCount = parseCleanNumber(cols[3]);
+                const averagePrice = parseCleanNumber(cols[4]);
+                const currentPrice = parseCleanNumber(cols[5]);
+                const usdChange = parseCleanNumber(cols[6]);
+                const percentChange = parseCleanNumber(cols[7]);
+                const usdApplied = parseCleanNumber(cols[8]);
+                const usdCurrent = parseCleanNumber(cols[9]);
+
+                const amountInvestedBRL = Math.round((usdApplied || (sharesCount * averagePrice)) * 5.60);
+                const currentValueBRL = Math.round((usdCurrent || (sharesCount * currentPrice)) * 5.60);
+
+                parsedInvestments.push({
+                  id: `inv-sheet-${index}`,
+                  ticker,
+                  companyName,
+                  assetClass,
+                  sharesCount,
+                  averagePrice,
+                  currentPrice,
+                  usdChange,
+                  percentChange,
+                  usdApplied,
+                  usdCurrent,
+                  name: `${companyName} (${ticker})`,
+                  category: 'Internacional',
+                  amountInvested: amountInvestedBRL,
+                  currentValue: currentValueBRL,
+                  yieldPercent: percentChange || (usdApplied > 0 ? parseFloat((((usdCurrent - usdApplied) / usdApplied) * 100).toFixed(2)) : 0),
+                  monthlyDividend: 0
+                });
               });
             }
 
             fetchResults.push({
               ...sheet,
               status: 'conectado',
-              message: 'Sincronizado automaticamente com leitor inteligente de colunas',
+              message: 'Sincronizado automaticamente',
               linesCount: dataRows.length,
             });
           } else {
             fetchResults.push({
               ...sheet,
               status: 'pendente',
-              message: response.status === 401 ? 'Autenticação privada ativa para a conta proprietária' : `Erro HTTP ${response.status}`,
+              message: response.status === 401 ? 'Acesso privado' : `Erro HTTP ${response.status}`,
               httpCode: response.status
             });
           }
@@ -234,15 +362,18 @@ async function startServer() {
       res.json({
         success: true,
         sheets: fetchResults,
-        investmentsUSD: parsedInvestmentsUSD,
         transactions: parsedExtratoTransactions.length > 0 ? parsedExtratoTransactions : undefined,
+        cards: parsedCards.length > 0 ? parsedCards : undefined,
+        subscriptions: parsedSubscriptions.length > 0 ? parsedSubscriptions : undefined,
+        totaisMatrix: parsedTotaisMatrix,
+        debtors: parsedDebtors.length > 0 ? parsedDebtors : undefined,
+        investments: parsedInvestments.length > 0 ? parsedInvestments : undefined,
         liveSummary: liveTotalIncome > 0 || liveTotalExpenses > 0 ? {
           totalIncome: liveTotalIncome,
           totalExpenses: liveTotalExpenses,
           leftover: liveTotalIncome - liveTotalExpenses,
         } : undefined,
         usdRate: 5.60,
-        instructionsNeeded: fetchResults.some(s => s.status === 'pendente'),
       });
     } catch (err: any) {
       console.error('Error fetching sheets:', err);
