@@ -1,16 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Plus,
   FileSpreadsheet,
   Calendar,
-  Sparkles,
-  ShieldCheck,
   ChevronDown,
   Search,
-  LogOut,
-  Lock,
+  Settings,
+  X,
+  TrendingUp,
+  CreditCard,
+  Target,
+  ArrowUpRight,
+  ArrowDownRight,
 } from 'lucide-react';
 import { TomatoIcon } from './TomatoIcon';
+import { Transaction, Investment, CreditCardSheet, Debtor } from '../types';
+import { formatCurrency } from '../utils/formatters';
 
 interface HeaderProps {
   selectedMonth: string;
@@ -20,10 +25,10 @@ interface HeaderProps {
   onNavigateToTab: (tabId: string) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  googleUser: User | null;
-  isLoggingIn: boolean;
-  onGoogleLogin: () => void;
-  onGoogleLogout: () => void;
+  transactions?: Transaction[];
+  investments?: Investment[];
+  creditCards?: CreditCardSheet[];
+  debtors?: Debtor[];
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -34,19 +39,55 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateToTab,
   searchQuery,
   onSearchChange,
-  googleUser,
-  isLoggingIn,
-  onGoogleLogin,
-  onGoogleLogout,
+  transactions = [],
+  investments = [],
+  creditCards = [],
+  debtors = [],
 }) => {
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  // Search filtering across all data items
+  const query = searchQuery.trim().toLowerCase();
+  const matchedTransactions = query
+    ? transactions.filter(
+        (t) =>
+          t.description.toLowerCase().includes(query) ||
+          t.category.toLowerCase().includes(query) ||
+          t.paymentMethod.toLowerCase().includes(query)
+      )
+    : [];
+
+  const matchedInvestments = query
+    ? investments.filter(
+        (i) => i.name.toLowerCase().includes(query) || i.category.toLowerCase().includes(query)
+      )
+    : [];
+
+  const matchedCards = query
+    ? creditCards.filter((c) => c.name.toLowerCase().includes(query) || c.bank.toLowerCase().includes(query))
+    : [];
+
+  const matchedDebtors = query
+    ? debtors.filter((d) => d.borrowerName.toLowerCase().includes(query) || d.description.toLowerCase().includes(query))
+    : [];
+
+  const hasResults =
+    matchedTransactions.length > 0 ||
+    matchedInvestments.length > 0 ||
+    matchedCards.length > 0 ||
+    matchedDebtors.length > 0;
+
   return (
-    <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#F8F9F3]/85 border-b border-[#11310C]/10 px-4 lg:px-8 py-3.5 transition-all">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
-        {/* Brand & Title */}
+    <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#F8F9F3]/90 border-b border-[#11310C]/10 px-4 lg:px-8 py-3.5 transition-all">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3 relative">
+        {/* Brand & Logo */}
         <div className="flex items-center justify-between md:justify-start gap-4">
-          <div className="flex items-center gap-3">
+          <div
+            onClick={() => onNavigateToTab('dashboard')}
+            className="flex items-center gap-3 cursor-pointer group"
+          >
             {/* Logo pill */}
-            <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-md shadow-[#11310C]/10 border border-[#11310C]/15 glaze-shine">
+            <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-md shadow-[#11310C]/10 border border-[#11310C]/15 glaze-shine group-hover:scale-105 transition-all">
               <TomatoIcon className="w-6 h-6" />
             </div>
             <div>
@@ -55,38 +96,122 @@ export const Header: React.FC<HeaderProps> = ({
                   Strato
                 </span>
               </div>
-              {googleUser && (
-                <p className="text-xs text-[#11310C]/70 flex items-center gap-1 font-medium mt-0.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="text-emerald-700 font-semibold">Autenticado com Google ({googleUser.email})</span>
-                </p>
-              )}
             </div>
           </div>
 
           {/* Quick spreadsheet indicator button */}
           <button
             onClick={() => onNavigateToTab('planilhas')}
-            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/80 hover:bg-white text-[#11310C] border border-[#11310C]/15 shadow-xs transition-all hover:border-[#C4C240]"
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/80 hover:bg-white text-[#11310C] border border-[#11310C]/15 shadow-xs transition-all hover:border-[#C4C240] cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4 text-[#C4C240]" />
             <span className="hidden lg:inline">Planilhas Conectadas</span>
-            <span className={`w-2 h-2 rounded-full ${googleUser ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           </button>
         </div>
 
-        {/* Search & Month Filter & Manual Entry CTA & Google Login */}
+        {/* Search & Month Filter & CTA & Settings */}
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
-          {/* Quick Search */}
-          <div className="relative flex-1 sm:w-48">
+          {/* Global Interactive Search Input */}
+          <div className="relative flex-1 sm:w-64">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#11310C]/40" />
             <input
               type="text"
-              placeholder="Buscar..."
+              placeholder="Buscar em ativos, extrato, cartões..."
               value={searchQuery}
+              onFocus={() => setIsSearchFocused(true)}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 rounded-2xl text-xs font-medium bg-white/90 border border-[#11310C]/15 focus:outline-none focus:ring-2 focus:ring-[#C4C240] focus:border-transparent transition-all placeholder-[#11310C]/40 text-[#11310C]"
+              className="w-full pl-9 pr-8 py-1.5 rounded-2xl text-xs font-medium bg-white/90 border border-[#11310C]/15 focus:outline-none focus:ring-2 focus:ring-[#C4C240] focus:border-transparent transition-all placeholder-[#11310C]/40 text-[#11310C]"
             />
+            {searchQuery && (
+              <button
+                onClick={() => onSearchChange('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#11310C]/40 hover:text-[#11310C]"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            {/* Interactive Search Results Popup */}
+            {isSearchFocused && query && (
+              <div className="absolute top-12 left-0 w-full sm:w-80 bg-white rounded-2xl border border-[#11310C]/15 shadow-2xl p-3 z-50 space-y-2 max-h-80 overflow-y-auto">
+                {!hasResults ? (
+                  <p className="text-xs text-[#11310C]/60 text-center py-4">
+                    Nenhum resultado para "{searchQuery}"
+                  </p>
+                ) : (
+                  <>
+                    {/* Transactions */}
+                    {matchedTransactions.length > 0 && (
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#11310C]/50 px-2 block mb-1">
+                          Lançamentos / Extrato ({matchedTransactions.length})
+                        </span>
+                        {matchedTransactions.slice(0, 3).map((t) => (
+                          <div
+                            key={t.id}
+                            onClick={() => {
+                              onNavigateToTab('extrato');
+                              setIsSearchFocused(false);
+                            }}
+                            className="p-2 hover:bg-[#F8F9F3] rounded-xl flex items-center justify-between cursor-pointer text-xs"
+                          >
+                            <span className="font-semibold text-[#11310C] truncate max-w-[170px]">{t.description}</span>
+                            <span className={t.type === 'income' ? 'text-emerald-700 font-bold' : 'text-[#E13513] font-bold'}>
+                              {formatCurrency(t.amount)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Investments */}
+                    {matchedInvestments.length > 0 && (
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#11310C]/50 px-2 block mb-1">
+                          Investimentos ({matchedInvestments.length})
+                        </span>
+                        {matchedInvestments.slice(0, 3).map((i) => (
+                          <div
+                            key={i.id}
+                            onClick={() => {
+                              onNavigateToTab('investimentos');
+                              setIsSearchFocused(false);
+                            }}
+                            className="p-2 hover:bg-[#F8F9F3] rounded-xl flex items-center justify-between cursor-pointer text-xs"
+                          >
+                            <span className="font-semibold text-[#11310C] truncate max-w-[170px]">{i.name}</span>
+                            <span className="font-bold text-[#11310C]">{formatCurrency(i.currentValue)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Cards */}
+                    {matchedCards.length > 0 && (
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#11310C]/50 px-2 block mb-1">
+                          Cartões ({matchedCards.length})
+                        </span>
+                        {matchedCards.map((c) => (
+                          <div
+                            key={c.id}
+                            onClick={() => {
+                              onNavigateToTab('cartoes');
+                              setIsSearchFocused(false);
+                            }}
+                            className="p-2 hover:bg-[#F8F9F3] rounded-xl flex items-center justify-between cursor-pointer text-xs"
+                          >
+                            <span className="font-semibold text-[#11310C]">{c.name}</span>
+                            <span className="font-bold text-[#E13513]">{formatCurrency(c.currentInvoice)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Month Selector Pill */}
@@ -108,38 +233,14 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Google Sign-In or User Profile */}
-          {googleUser ? (
-            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-950 border border-emerald-300 px-3 py-1.5 rounded-2xl text-xs font-medium">
-              {googleUser.photoURL ? (
-                <img src={googleUser.photoURL} alt={googleUser.displayName || 'User'} className="w-5 h-5 rounded-full object-cover" />
-              ) : (
-                <Lock className="w-3.5 h-3.5 text-emerald-600" />
-              )}
-              <span className="hidden md:inline font-semibold text-[11px] truncate max-w-[110px]">{googleUser.displayName || googleUser.email}</span>
-              <button
-                onClick={onGoogleLogout}
-                title="Sair da conta Google"
-                className="hover:text-red-600 ml-1 cursor-pointer transition-colors"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={onGoogleLogin}
-              disabled={isLoggingIn}
-              className="flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold px-3.5 py-1.5 rounded-2xl border border-gray-300 shadow-xs text-xs cursor-pointer transition-all disabled:opacity-50"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 48 48">
-                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-              </svg>
-              <span>{isLoggingIn ? 'Conectando...' : 'Entrar com Google'}</span>
-            </button>
-          )}
+          {/* Quick Settings Icon */}
+          <button
+            onClick={() => onNavigateToTab('configuracoes')}
+            className="p-2 rounded-2xl bg-white/90 hover:bg-white border border-[#11310C]/15 text-[#11310C] shadow-xs cursor-pointer transition-all"
+            title="Configurações & Login Google"
+          >
+            <Settings className="w-4 h-4 text-[#11310C]" />
+          </button>
 
           {/* Registro Manual Button */}
           <button
@@ -154,4 +255,5 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+
 

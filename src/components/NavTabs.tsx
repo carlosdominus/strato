@@ -5,8 +5,10 @@ import {
   TrendingUp,
   CreditCard,
   Target,
+  Sparkles,
   FileSpreadsheet,
   ReceiptText,
+  Settings,
 } from 'lucide-react';
 
 export interface TabItem {
@@ -41,8 +43,14 @@ export const TABS: TabItem[] = [
   },
   {
     id: 'dividas',
-    label: 'Dívidas & Metas',
+    label: 'Dívidas & Devedores',
     icon: Target,
+  },
+  {
+    id: 'metas',
+    label: 'Metas & IA',
+    icon: Sparkles,
+    badge: 'Projeção',
   },
   {
     id: 'planilhas',
@@ -55,7 +63,13 @@ export const TABS: TabItem[] = [
     label: 'Extrato',
     icon: ReceiptText,
   },
+  {
+    id: 'configuracoes',
+    label: 'Configurações',
+    icon: Settings,
+  },
 ];
+
 
 interface NavTabsProps {
   activeTab: string;

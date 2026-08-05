@@ -86,3 +86,36 @@ export interface AIRecommendation {
   description: string;
   impact: string;
 }
+
+export interface BankAccount {
+  id: string;
+  bankName: string;
+  accountType: string;
+  balance: number;
+  lastDigits?: string;
+}
+
+export interface Debtor {
+  id: string;
+  borrowerName: string;
+  description: string;
+  totalAmount: number;
+  amountPaid: number;
+  remainingAmount: number;
+  dueDate: string;
+  status: 'pendente' | 'parcial' | 'quitado';
+  sheetUrl?: string;
+  notes?: string;
+}
+
+export interface FinancialGoal {
+  id: string;
+  title: string;
+  category: 'Reserva' | 'Investimento' | 'Aquisição' | 'Viagem' | 'Aposentadoria' | 'Outros';
+  targetAmount: number;
+  currentAmount: number;
+  targetDate: string; // YYYY-MM
+  monthlyContribution: number;
+  notes?: string;
+}
+

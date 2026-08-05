@@ -6,6 +6,9 @@ import {
   Subscription,
   SpreadsheetConnection,
   MonthSummaryData,
+  BankAccount,
+  Debtor,
+  FinancialGoal,
 } from '../types';
 
 export const INITIAL_MONTHS = [
@@ -17,10 +20,41 @@ export const INITIAL_MONTHS = [
   'Agosto 2026',
 ];
 
+export const INITIAL_BANK_ACCOUNTS: BankAccount[] = [
+  {
+    id: 'acc-1',
+    bankName: 'Itaú Personnalité',
+    accountType: 'Conta Corrente + Reserva',
+    balance: 18450.00,
+    lastDigits: '4820',
+  },
+  {
+    id: 'acc-2',
+    bankName: 'Nubank',
+    accountType: 'Conta Digital + Caixinhas',
+    balance: 12380.00,
+    lastDigits: '9120',
+  },
+  {
+    id: 'acc-3',
+    bankName: 'BTG Pactual',
+    accountType: 'Conta Investimentos & Liquidez',
+    balance: 8940.00,
+    lastDigits: '3301',
+  },
+  {
+    id: 'acc-4',
+    bankName: 'Banco Inter',
+    accountType: 'Conta Global & Corrente',
+    balance: 5210.00,
+    lastDigits: '7721',
+  },
+];
+
 export const MONTHLY_HISTORICAL_DATA: Record<string, MonthSummaryData> = {
   'Março 2026': {
     month: 'Março 2026',
-    totalMoney: 118400,
+    totalMoney: 32400,
     totalIncome: 18200,
     totalExpenses: 11450,
     leftover: 6750,
@@ -31,7 +65,7 @@ export const MONTHLY_HISTORICAL_DATA: Record<string, MonthSummaryData> = {
   },
   'Abril 2026': {
     month: 'Abril 2026',
-    totalMoney: 124200,
+    totalMoney: 35200,
     totalIncome: 18500,
     totalExpenses: 12100,
     leftover: 6400,
@@ -42,7 +76,7 @@ export const MONTHLY_HISTORICAL_DATA: Record<string, MonthSummaryData> = {
   },
   'Maio 2026': {
     month: 'Maio 2026',
-    totalMoney: 129800,
+    totalMoney: 38800,
     totalIncome: 19200,
     totalExpenses: 13800,
     leftover: 5400,
@@ -53,7 +87,7 @@ export const MONTHLY_HISTORICAL_DATA: Record<string, MonthSummaryData> = {
   },
   'Junho 2026': {
     month: 'Junho 2026',
-    totalMoney: 136500,
+    totalMoney: 40500,
     totalIncome: 21000,
     totalExpenses: 12300,
     leftover: 8700,
@@ -64,7 +98,7 @@ export const MONTHLY_HISTORICAL_DATA: Record<string, MonthSummaryData> = {
   },
   'Julho 2026': {
     month: 'Julho 2026',
-    totalMoney: 142900,
+    totalMoney: 42900,
     totalIncome: 20500,
     totalExpenses: 11900,
     leftover: 8600,
@@ -75,7 +109,7 @@ export const MONTHLY_HISTORICAL_DATA: Record<string, MonthSummaryData> = {
   },
   'Agosto 2026': {
     month: 'Agosto 2026',
-    totalMoney: 151280,
+    totalMoney: 44980,
     totalIncome: 22800,
     totalExpenses: 12450,
     leftover: 10350,
@@ -85,6 +119,7 @@ export const MONTHLY_HISTORICAL_DATA: Record<string, MonthSummaryData> = {
     monthlyGrowthPercent: 5.8,
   },
 };
+
 
 export const INITIAL_TRANSACTIONS: Transaction[] = [
   {
@@ -446,6 +481,64 @@ export const INITIAL_SPREADSHEETS: SpreadsheetConnection[] = [
   },
 ];
 
+export const INITIAL_DEBTORS: Debtor[] = [
+  {
+    id: 'debtor-1',
+    borrowerName: 'Registro de Devedores (A Receber)',
+    description: 'Empréstimo concedido com acerto previsto - Sincronizado com Google Sheets',
+    totalAmount: 8500,
+    amountPaid: 2000,
+    remainingAmount: 6500,
+    dueDate: '2026-09-15',
+    status: 'parcial',
+    sheetUrl: 'https://docs.google.com/spreadsheets/d/1iSvoywDpT7uq8yJH4RGBPw9U8JtC9AkRST7JZMwDQXc/edit?gid=619733660#gid=619733660',
+    notes: 'Registrado em planilha do Google Sheets compartilhada.',
+  },
+];
+
+export const INITIAL_FINANCIAL_GOALS: FinancialGoal[] = [
+  {
+    id: 'goal-1',
+    title: 'Reserva de Emergência (6 Meses)',
+    category: 'Reserva',
+    targetAmount: 75000,
+    currentAmount: 45000,
+    targetDate: '2026-12',
+    monthlyContribution: 5000,
+    notes: 'Manter alocado em Renda Fixa de Liquidez Diária (CDB 100%+ CDI / Tesouro Selic).',
+  },
+  {
+    id: 'goal-2',
+    title: 'Viagem & Imersão Internacional',
+    category: 'Viagem',
+    targetAmount: 28000,
+    currentAmount: 18500,
+    targetDate: '2027-02',
+    monthlyContribution: 1500,
+    notes: 'Dolarizar aportes progressivamente.',
+  },
+  {
+    id: 'goal-3',
+    title: 'Aposentadoria & Renda Passiva R$ 10k/mês',
+    category: 'Aposentadoria',
+    targetAmount: 1200000,
+    currentAmount: 116800,
+    targetDate: '2035-08',
+    monthlyContribution: 4500,
+    notes: 'Aportes concentrados em FIIs de TI e galpões logísticos + dividendos americanos.',
+  },
+  {
+    id: 'goal-4',
+    title: 'Aquisição de Veículo Elétrico',
+    category: 'Aquisição',
+    targetAmount: 140000,
+    currentAmount: 35000,
+    targetDate: '2027-11',
+    monthlyContribution: 3000,
+    notes: 'Substituição da frota pessoal.',
+  },
+];
+
 export const MOCK_TRANSACTIONS = INITIAL_TRANSACTIONS;
 export const MOCK_MONTHS_SUMMARY = MONTHLY_HISTORICAL_DATA;
 export const MOCK_CREDIT_CARDS = INITIAL_CARDS;
@@ -453,5 +546,9 @@ export const MOCK_INVESTMENTS = INITIAL_INVESTMENTS;
 export const MOCK_DEBTS = INITIAL_DEBTS;
 export const MOCK_SUBSCRIPTIONS = INITIAL_SUBSCRIPTIONS;
 export const MOCK_SPREADSHEETS = INITIAL_SPREADSHEETS;
+export const MOCK_BANK_ACCOUNTS = INITIAL_BANK_ACCOUNTS;
+export const MOCK_DEBTORS = INITIAL_DEBTORS;
+export const MOCK_FINANCIAL_GOALS = INITIAL_FINANCIAL_GOALS;
+
 
 

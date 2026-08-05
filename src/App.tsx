@@ -7,6 +7,8 @@ import { ResumoView } from './components/ResumoView';
 import { InvestimentosView } from './components/InvestimentosView';
 import { CartoesAssinaturasView } from './components/CartoesAssinaturasView';
 import { DividasView } from './components/DividasView';
+import { MetasView } from './components/MetasView';
+import { ConfiguracoesView } from './components/ConfiguracoesView';
 import { PlanilhasView } from './components/PlanilhasView';
 import { ExtratoView } from './components/ExtratoView';
 
@@ -18,8 +20,11 @@ import {
   MOCK_DEBTS,
   MOCK_SUBSCRIPTIONS,
   MOCK_SPREADSHEETS,
+  INITIAL_BANK_ACCOUNTS,
+  INITIAL_DEBTORS,
+  INITIAL_FINANCIAL_GOALS,
 } from './data/mockData';
-import { Transaction, SpreadsheetConnection } from './types';
+import { Transaction, SpreadsheetConnection, FinancialGoal, Debtor } from './types';
 import { initAuth, googleSignIn, logout, getAccessToken } from './lib/firebase';
 import { User } from 'firebase/auth';
 
@@ -35,6 +40,9 @@ export function App() {
   const [creditCards] = useState(MOCK_CREDIT_CARDS);
   const [investments, setInvestments] = useState(MOCK_INVESTMENTS);
   const [debts] = useState(MOCK_DEBTS);
+  const [debtors] = useState<Debtor[]>(INITIAL_DEBTORS);
+  const [goals, setGoals] = useState<FinancialGoal[]>(INITIAL_FINANCIAL_GOALS);
+  const [bankAccounts] = useState(INITIAL_BANK_ACCOUNTS);
   const [subscriptions] = useState(MOCK_SUBSCRIPTIONS);
   const [spreadsheets, setSpreadsheets] = useState<SpreadsheetConnection[]>(MOCK_SPREADSHEETS);
 
@@ -122,6 +130,20 @@ export function App() {
     fetchLiveSheets(null);
   };
 
+  const handleAddGoal = (newGoal: Omit<FinancialGoal, 'id'>) => {
+    const created: FinancialGoal = {
+      ...newGoal,
+      id: `goal-${Date.now()}`,
+    };
+    setGoals((prev) => [...prev, created]);
+  };
+
+  const handleUpdateGoalProgress = (id: string, additionalAmount: number) => {
+    setGoals((prev) =>
+      prev.map((g) => (g.id === id ? { ...g, currentAmount: g.currentAmount + additionalAmount } : g))
+    );
+  };
+
   const monthsList = Object.keys(monthsData);
   const currentMonthSummary = monthsData[selectedMonth] || monthsData['Agosto 2026'];
 
@@ -187,10 +209,10 @@ export function App() {
         onNavigateToTab={setActiveTab}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        googleUser={googleUser}
-        isLoggingIn={isLoggingIn}
-        onGoogleLogin={handleGoogleLogin}
-        onGoogleLogout={handleGoogleLogout}
+        transactions={transactions}
+        investments={investments}
+        creditCards={creditCards}
+        debtors={debtors}
       />
 
       {/* Main Navigation Tabs */}
@@ -239,7 +261,16 @@ export function App() {
         {activeTab === 'dividas' && (
           <DividasView
             debts={debts}
+            debtors={debtors}
             onOpenManualModal={() => setIsManualModalOpen(true)}
+          />
+        )}
+
+        {activeTab === 'metas' && (
+          <MetasView
+            goals={goals}
+            onAddGoal={handleAddGoal}
+            onUpdateGoalProgress={handleUpdateGoalProgress}
           />
         )}
 
@@ -258,6 +289,17 @@ export function App() {
             selectedMonth={selectedMonth}
           />
         )}
+
+        {activeTab === 'configuracoes' && (
+          <ConfiguracoesView
+            googleUser={googleUser}
+            isLoggingIn={isLoggingIn}
+            onGoogleLogin={handleGoogleLogin}
+            onGoogleLogout={handleGoogleLogout}
+            spreadsheets={spreadsheets}
+            onRefreshSheets={() => fetchLiveSheets()}
+          />
+        )}
       </main>
 
       {/* Manual Entry Registration Modal */}
@@ -272,3 +314,4 @@ export function App() {
 }
 
 export default App;
+

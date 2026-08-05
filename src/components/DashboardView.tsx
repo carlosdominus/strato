@@ -131,8 +131,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* Primary Financial Metric Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Ganho no Mês */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Metric 1: Saldo Total das Contas (New Requested Card) */}
+        <div className="glass-card rounded-3xl p-5 border border-white/90 relative overflow-hidden group hover:border-[#11310C]/30 transition-all bg-gradient-to-br from-white via-white to-[#11310C]/5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider">
+              Saldo das Contas
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-[#11310C]/10 text-[#11310C] flex items-center justify-center">
+              <Wallet className="w-4 h-4 text-[#11310C]" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
+            {formatCurrency(currentMonthData.totalMoney)}
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#11310C]/10 text-[#11310C]">
+              4 Contas
+            </span>
+            <span className="text-[11px] font-medium text-[#11310C]/60">Sincronizado {selectedMonth}</span>
+          </div>
+        </div>
+
+        {/* Metric 2: Ganho no Mês */}
         <div className="glass-card rounded-3xl p-5 border border-white/90 relative overflow-hidden group hover:border-[#C4C240]/40 transition-all">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider">
@@ -153,7 +174,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Metric 2: Gasto no Mês (Chili Red) */}
+        {/* Metric 3: Gasto no Mês (Chili Red) */}
         <div className="glass-card rounded-3xl p-5 border border-white/90 relative overflow-hidden group hover:border-[#E13513]/30 transition-all">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider">
@@ -174,7 +195,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Metric 3: Sobrou no Mês (Highlighted in Citron) */}
+        {/* Metric 4: Sobrou no Mês (Highlighted in Citron) */}
         <div className="glass-card rounded-3xl p-5 border border-[#C4C240]/50 relative overflow-hidden bg-gradient-to-br from-white via-white to-[#F7F9E3]/50">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-[#11310C] uppercase tracking-wider flex items-center gap-1">
@@ -190,12 +211,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="flex items-center gap-2 mt-2">
             <span className="text-[11px] font-semibold text-[#11310C]/80">
-              Disponível para aportes ou reserva
+              Disponível para aportes
             </span>
           </div>
         </div>
 
-        {/* Metric 4: Total em Investimentos */}
+        {/* Metric 5: Total em Investimentos */}
         <div className="glass-card rounded-3xl p-5 border border-white/90 relative overflow-hidden">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider">

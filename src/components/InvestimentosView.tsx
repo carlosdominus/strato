@@ -32,6 +32,7 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
   onOpenManualModal,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('todos');
+  const [pieMode, setPieMode] = useState<'ativo' | 'categoria'>('ativo');
 
   const totalInvested = investments.reduce((acc, item) => acc + item.amountInvested, 0);
   const totalCurrentValue = investments.reduce((acc, item) => acc + item.currentValue, 0);
@@ -39,16 +40,29 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
   const overallYield = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
   const totalMonthlyDividends = investments.reduce((acc, item) => acc + item.monthlyDividend, 0);
 
-  // Allocation data by category
+  // International assets total in USD (approx rate 5.60 BRL / USD)
+  const usdExchangeRate = 5.60;
+  const internationalAssets = investments.filter((i) => i.category === 'Internacional');
+  const totalUsdValue = internationalAssets.reduce((acc, item) => acc + item.currentValue / usdExchangeRate, 0);
+
+  // Allocation data by Asset OR Category
   const categoryTotals: Record<string, number> = {};
   investments.forEach((inv) => {
     categoryTotals[inv.category] = (categoryTotals[inv.category] || 0) + inv.currentValue;
   });
 
-  const pieData = Object.keys(categoryTotals).map((cat) => ({
-    name: cat,
-    value: categoryTotals[cat],
-  }));
+  const pieData =
+    pieMode === 'ativo'
+      ? investments.map((inv) => ({
+          name: inv.name,
+          value: inv.currentValue,
+          category: inv.category,
+        }))
+      : Object.keys(categoryTotals).map((cat) => ({
+          name: cat,
+          value: categoryTotals[cat],
+          category: cat,
+        }));
 
   const filteredInvestments =
     selectedCategory === 'todos'
@@ -120,20 +134,21 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
             {formatCurrency(totalMonthlyDividends)}
           </div>
           <p className="text-[11px] font-medium text-[#11310C]/60 mt-2">
-            Dividendos de FIIs e JCPs
+            Dividendos de FIIs e Stocks EUA
           </p>
         </div>
 
-        {/* Card 4: Dividend Yield Médio */}
-        <div className="glass-card rounded-3xl p-5 border border-white/90">
-          <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider block mb-2">
-            DY Médio Anualizado
+        {/* Card 4: Posição Internacional em Dólar */}
+        <div className="glass-card rounded-3xl p-5 border border-white/90 bg-gradient-to-br from-white via-white to-emerald-50/40">
+          <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider block mb-2 flex items-center justify-between">
+            <span>Posição em Dólares</span>
+            <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">USD $</span>
           </span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            11,2% a.a.
+          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-900">
+            $ {totalUsdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <p className="text-[11px] font-medium text-[#11310C]/60 mt-2">
-            Isento de Imposto de Renda
+          <p className="text-[11px] font-medium text-[#11310C]/70 mt-2">
+            ~ {formatCurrency(totalUsdValue * usdExchangeRate)} (Câmbio: R$ {usdExchangeRate.toFixed(2)})
           </p>
         </div>
       </div>
@@ -142,11 +157,37 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Allocation Donut Chart (1 Col) */}
         <div className="glass-card rounded-3xl p-6 border border-white/90 space-y-4">
-          <div>
-            <h3 className="text-lg font-extrabold text-[#11310C]">
-              Alocação de <span className="font-serif italic font-bold text-xl text-[#C4C240]">Ativos</span>
-            </h3>
-            <p className="text-xs text-[#11310C]/60">Distribuição percentual da sua carteira</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-extrabold text-[#11310C]">
+                Alocação de <span className="font-serif italic font-bold text-xl text-[#C4C240]">Ativos</span>
+              </h3>
+              <p className="text-xs text-[#11310C]/60">Passe o mouse para ver cada ativo específico</p>
+            </div>
+
+            {/* View Mode Toggle Switch */}
+            <div className="flex items-center gap-1 p-0.5 bg-[#11310C]/10 rounded-xl">
+              <button
+                onClick={() => setPieMode('ativo')}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
+                  pieMode === 'ativo'
+                    ? 'bg-[#11310C] text-[#FAFBF6]'
+                    : 'text-[#11310C]/70 hover:text-[#11310C]'
+                }`}
+              >
+                Por Ativo
+              </button>
+              <button
+                onClick={() => setPieMode('categoria')}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
+                  pieMode === 'categoria'
+                    ? 'bg-[#11310C] text-[#FAFBF6]'
+                    : 'text-[#11310C]/70 hover:text-[#11310C]'
+                }`}
+              >
+                Categoria
+              </button>
+            </div>
           </div>
 
           <div className="h-60 w-full flex items-center justify-center">
@@ -158,7 +199,7 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
                   cy="50%"
                   innerRadius={55}
                   outerRadius={85}
-                  paddingAngle={4}
+                  paddingAngle={3}
                   dataKey="value"
                 >
                   {pieData.map((entry, index) => (
@@ -168,29 +209,33 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#11310C',
-                    borderRadius: '12px',
+                    borderRadius: '16px',
                     color: '#FAFBF6',
-                    fontSize: '11px',
+                    fontSize: '12px',
                     fontWeight: 'bold',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
                   }}
-                  formatter={(val: any) => formatCurrency(Number(val))}
+                  formatter={(val: any, name: any, item: any) => [
+                    `${formatCurrency(Number(val))} (${((Number(val) / totalCurrentValue) * 100).toFixed(1)}%)`,
+                    item?.payload?.name || name,
+                  ]}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
           {/* Custom Legend */}
-          <div className="space-y-2 pt-2 border-t border-[#11310C]/10">
-            {pieData.map((item, idx) => (
+          <div className="space-y-2 pt-2 border-t border-[#11310C]/10 max-h-48 overflow-y-auto">
+            {pieData.slice(0, 7).map((item, idx) => (
               <div key={item.name} className="flex items-center justify-between text-xs font-bold">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 truncate">
                   <span
-                    className="w-3 h-3 rounded-full"
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: COLORS[idx % COLORS.length] }}
                   />
-                  <span className="text-[#11310C]">{item.name}</span>
+                  <span className="text-[#11310C] truncate">{item.name}</span>
                 </div>
-                <span className="text-[#11310C]">
+                <span className="text-[#11310C] flex-shrink-0 ml-2">
                   {((item.value / totalCurrentValue) * 100).toFixed(1)}%
                 </span>
               </div>
@@ -205,12 +250,12 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
               <h3 className="text-lg font-extrabold text-[#11310C]">
                 Ativos em <span className="font-serif italic font-bold text-xl text-[#C4C240]">Carteira</span>
               </h3>
-              <p className="text-xs text-[#11310C]/60">Sincronizado com Planilha_Investimentos.xlsx</p>
+              <p className="text-xs text-[#11310C]/60">Sincronizado em R$ (BRL) e $ (USD)</p>
             </div>
 
             {/* Category Filter Chips */}
             <div className="flex items-center gap-1 overflow-x-auto">
-              {['todos', 'Renda Fixa', 'FIIs', 'Ações', 'Cripto'].map((cat) => (
+              {['todos', 'Internacional', 'Renda Fixa', 'FIIs', 'Ações', 'Cripto'].map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
@@ -240,30 +285,42 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#11310C]/5 font-semibold">
-                {filteredInvestments.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-white/60 transition-all">
-                    <td className="py-3 font-extrabold text-[#11310C]">{inv.name}</td>
-                    <td className="py-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-[#11310C]/10 text-[#11310C]">
-                        {inv.category}
-                      </span>
-                    </td>
-                    <td className="py-3 text-right text-[#11310C]/80">
-                      {formatCurrency(inv.amountInvested)}
-                    </td>
-                    <td className="py-3 text-right font-extrabold text-[#11310C]">
-                      {formatCurrency(inv.currentValue)}
-                    </td>
-                    <td className="py-3 text-right">
-                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#C4C240]/25 text-[#11310C]">
-                        {formatPercent(inv.yieldPercent)}
-                      </span>
-                    </td>
-                    <td className="py-3 text-right text-emerald-800 font-extrabold">
-                      {inv.monthlyDividend > 0 ? formatCurrency(inv.monthlyDividend) : '-'}
-                    </td>
-                  </tr>
-                ))}
+                {filteredInvestments.map((inv) => {
+                  const isIntl = inv.category === 'Internacional';
+                  const usdVal = inv.currentValue / usdExchangeRate;
+
+                  return (
+                    <tr key={inv.id} className="hover:bg-white/60 transition-all">
+                      <td className="py-3">
+                        <div className="font-extrabold text-[#11310C]">{inv.name}</div>
+                        {isIntl && (
+                          <span className="text-[10px] text-emerald-800 font-bold block">
+                            ${usdVal.toFixed(2)} USD
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-[#11310C]/10 text-[#11310C]">
+                          {inv.category}
+                        </span>
+                      </td>
+                      <td className="py-3 text-right text-[#11310C]/80">
+                        {formatCurrency(inv.amountInvested)}
+                      </td>
+                      <td className="py-3 text-right font-extrabold text-[#11310C]">
+                        {formatCurrency(inv.currentValue)}
+                      </td>
+                      <td className="py-3 text-right">
+                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#C4C240]/25 text-[#11310C]">
+                          {formatPercent(inv.yieldPercent)}
+                        </span>
+                      </td>
+                      <td className="py-3 text-right text-emerald-800 font-extrabold">
+                        {inv.monthlyDividend > 0 ? formatCurrency(inv.monthlyDividend) : '-'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -272,3 +329,4 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
     </div>
   );
 };
+
