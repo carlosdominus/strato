@@ -54,21 +54,13 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="font-sans font-black text-2xl tracking-tight text-[#11310C]">
                   Strato
                 </span>
-                <span className="font-serif italic text-lg font-bold text-[#11310C]/60">
-                  finance
-                </span>
-                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#C4C240]/20 text-[#11310C] border border-[#C4C240]/40">
-                  OS 26
-                </span>
               </div>
-              <p className="text-xs text-[#11310C]/70 flex items-center gap-1 font-medium">
-                <ShieldCheck className="w-3.5 h-3.5 text-[#11310C]" />
-                {googleUser ? (
+              {googleUser && (
+                <p className="text-xs text-[#11310C]/70 flex items-center gap-1 font-medium mt-0.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                   <span className="text-emerald-700 font-semibold">Autenticado com Google ({googleUser.email})</span>
-                ) : (
-                  <span>Conexão Privada via OAuth Google</span>
-                )}
-              </p>
+                </p>
+              )}
             </div>
           </div>
 
