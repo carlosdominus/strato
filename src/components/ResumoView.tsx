@@ -20,7 +20,7 @@ import {
   LineChart,
   Line,
 } from 'recharts';
-import { MonthSummaryData, SpreadsheetConnection } from '../types';
+import { MonthSummaryData, SpreadsheetConnection, Investment } from '../types';
 import { formatCurrency, formatPercent } from '../utils/formatters';
 
 interface ResumoViewProps {
@@ -30,7 +30,23 @@ interface ResumoViewProps {
   selectedMonth: string;
   onSelectMonth: (month: string) => void;
   monthsList: string[];
+  investments?: Investment[];
 }
+
+const CustomBarTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const val = payload[0].value;
+    return (
+      <div className="bg-[#11310C] border border-[#C4C240] px-4 py-3 rounded-2xl shadow-2xl text-[#FAFBF6] space-y-1 z-50">
+        <p className="text-xs font-bold text-[#C4C240]">{label}</p>
+        <p className="text-xs font-extrabold text-white">
+          Dinheiro Total : <span className="text-[#C4C240] font-black">{formatCurrency(Number(val))}</span>
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
 
 export const ResumoView: React.FC<ResumoViewProps> = ({
   currentMonthData,
@@ -39,7 +55,18 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
   selectedMonth,
   onSelectMonth,
   monthsList,
+  investments = [],
 }) => {
+  // Live real-time investment total calculation (ignoring static sheet averages)
+  const liveInvestmentsTotal =
+    investments.length > 0
+      ? investments.reduce((acc, item) => acc + item.currentValue, 0)
+      : currentMonthData.totalInvestments;
+
+  // Real-time consolidated total money
+  const bankAccountsBalance = currentMonthData.totalMoney;
+  const consolidatedTotalMoney = bankAccountsBalance + liveInvestmentsTotal;
+
   // Monthly total money chart data
   const monthlyTotalsChart = Object.keys(allMonthsData).map((mKey) => {
     const item = allMonthsData[mKey];
@@ -123,20 +150,67 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
         </div>
       </div>
 
-      {/* Main Metric Spotlight: Total Money This Month */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Total Money Card (Prominent) */}
-        <div className="glass-dark-card rounded-3xl p-6 text-[#FAFBF6] space-y-3 relative overflow-hidden glaze-shine">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-extrabold uppercase tracking-widest text-[#C4C240]">
-              Dinheiro Total deste Mês
+      {/* Main Metric Spotlight Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Card 1: Saldo Total das Contas (Moved from Main Dashboard) */}
+        <div className="glass-card rounded-3xl p-6 border border-white/90 flex flex-col justify-between space-y-4">
+          <div>
+            <span className="text-xs font-bold text-[#11310C]/60 uppercase tracking-wider block mb-1">
+              Saldo das Contas Bancárias
             </span>
-            <Sparkles className="w-5 h-5 text-[#C4C240]" />
+            <div className="text-3xl font-extrabold text-[#11310C]">
+              {formatCurrency(bankAccountsBalance)}
+            </div>
+            <p className="text-xs text-[#11310C]/70 mt-1 font-medium">
+              Soma total dos saldos nas contas bancárias conectadas
+            </p>
           </div>
-          <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-            {formatCurrency(currentMonthData.totalMoney)}
+          <div className="p-3 rounded-2xl bg-[#11310C]/5 border border-[#11310C]/10 flex items-center justify-between text-xs font-bold">
+            <span className="text-[#11310C]">Status de Caixa:</span>
+            <span className="text-emerald-800 font-extrabold">Positivo</span>
           </div>
-          <div className="flex items-center gap-2 pt-1 border-t border-white/10">
+        </div>
+
+        {/* Card 2: Valor Total de Investimentos (Soma em Tempo Real) */}
+        <div className="glass-card rounded-3xl p-6 border border-white/90 flex flex-col justify-between space-y-4">
+          <div>
+            <span className="text-xs font-bold text-[#11310C]/60 uppercase tracking-wider block mb-1">
+              Soma dos Investimentos
+            </span>
+            <div className="text-3xl font-extrabold text-[#11310C]">
+              {formatCurrency(liveInvestmentsTotal)}
+            </div>
+            <p className="text-xs text-[#11310C]/70 mt-1 font-medium">
+              Calculado em tempo real somando cada ativo da carteira
+            </p>
+          </div>
+          <div className="w-full bg-[#11310C]/10 h-2 rounded-full overflow-hidden">
+            <div
+              className="bg-[#C4C240] h-full rounded-full"
+              style={{
+                width: `${Math.min(
+                  100,
+                  consolidatedTotalMoney > 0 ? (liveInvestmentsTotal / consolidatedTotalMoney) * 100 : 50
+                )}%`,
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Card 3: Total do Dinheiro Consolidado */}
+        <div className="glass-dark-card rounded-3xl p-6 text-[#FAFBF6] space-y-3 relative overflow-hidden glaze-shine flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-extrabold uppercase tracking-widest text-[#C4C240]">
+                Dinheiro Total Consolidado
+              </span>
+              <Sparkles className="w-5 h-5 text-[#C4C240]" />
+            </div>
+            <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mt-2">
+              {formatCurrency(consolidatedTotalMoney)}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 pt-2 border-t border-white/10">
             <span
               className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-extrabold ${
                 currentMonthData.monthlyGrowthPercent >= 0
@@ -147,67 +221,7 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
               {currentMonthData.monthlyGrowthPercent >= 0 ? '+' : ''}
               {currentMonthData.monthlyGrowthPercent}%
             </span>
-            <span className="text-xs text-[#FAFBF6]/70">Variação acumulada no mês</span>
-          </div>
-        </div>
-
-        {/* Breakdown Card: Total Income vs Total Expense */}
-        <div className="glass-card rounded-3xl p-6 border border-white/90 flex flex-col justify-between space-y-4">
-          <div>
-            <span className="text-xs font-bold text-[#11310C]/60 uppercase tracking-wider">
-              Entradas vs Saídas de {selectedMonth}
-            </span>
-            <div className="grid grid-cols-2 gap-4 mt-3">
-              <div>
-                <p className="text-[11px] font-semibold text-[#11310C]/60">Ganhos do Mês</p>
-                <p className="text-lg font-extrabold text-[#11310C]">
-                  {formatCurrency(currentMonthData.totalIncome)}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-[11px] font-semibold text-[#11310C]/60">Gastos do Mês</p>
-                <p className="text-lg font-extrabold text-[#E13513]">
-                  {formatCurrency(currentMonthData.totalExpenses)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-3 rounded-2xl bg-[#11310C]/5 border border-[#11310C]/10 flex items-center justify-between text-xs font-bold">
-            <span className="text-[#11310C]">Sobra Líquida Gravada na Planilha:</span>
-            <span className="text-[#11310C] font-extrabold">
-              {formatCurrency(currentMonthData.leftover)}
-            </span>
-          </div>
-        </div>
-
-        {/* Invested Wealth Portion */}
-        <div className="glass-card rounded-3xl p-6 border border-white/90 flex flex-col justify-between space-y-4">
-          <div>
-            <span className="text-xs font-bold text-[#11310C]/60 uppercase tracking-wider">
-              Reserva & Investimentos Acumulados
-            </span>
-            <div className="mt-3">
-              <p className="text-2xl font-extrabold text-[#11310C]">
-                {formatCurrency(currentMonthData.totalInvestments)}
-              </p>
-              <p className="text-xs text-[#11310C]/70 mt-1 font-medium">
-                Corresponde a {((currentMonthData.totalInvestments / currentMonthData.totalMoney) * 100).toFixed(1)}% do seu dinheiro total.
-              </p>
-            </div>
-          </div>
-
-          <div className="w-full bg-[#11310C]/10 h-2 rounded-full overflow-hidden">
-            <div
-              className="bg-[#C4C240] h-full rounded-full"
-              style={{
-                width: `${Math.min(
-                  100,
-                  (currentMonthData.totalInvestments / currentMonthData.totalMoney) * 100
-                )}%`,
-              }}
-            />
+            <span className="text-xs text-[#FAFBF6]/70">Contas + Investimentos ({selectedMonth})</span>
           </div>
         </div>
       </div>
@@ -239,17 +253,7 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#11310C" strokeOpacity={0.08} />
               <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#11310C', fontWeight: 600 }} />
               <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#11310C' }} tickFormatter={(v) => `R$${v/1000}k`} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#11310C',
-                  borderColor: '#C4C240',
-                  borderRadius: '16px',
-                  color: '#FAFBF6',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                }}
-                formatter={(val: any) => [formatCurrency(Number(val)), 'Dinheiro Total']}
-              />
+              <Tooltip content={<CustomBarTooltip />} />
               <Bar dataKey="totalMoney" radius={[12, 12, 0, 0]}>
                 {monthlyTotalsChart.map((entry, index) => (
                   <Cell

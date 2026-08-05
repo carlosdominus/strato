@@ -23,6 +23,23 @@ import {
 import { MonthSummaryData, Transaction, CreditCardSheet, AIRecommendation } from '../types';
 import { formatCurrency, formatPercent, formatDateBR } from '../utils/formatters';
 
+const CustomAreaTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#11310C] border border-[#C4C240] p-3 rounded-2xl shadow-xl text-[#FAFBF6] space-y-1 z-50">
+        <p className="text-xs font-bold text-[#C4C240]">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <p key={index} className="text-xs font-semibold text-white flex items-center justify-between gap-3">
+            <span>{entry.name}:</span>
+            <span className="font-extrabold text-[#C4C240]">{formatCurrency(Number(entry.value))}</span>
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
 interface DashboardViewProps {
   currentMonthData: MonthSummaryData;
   allMonthsData: Record<string, MonthSummaryData>;
@@ -131,29 +148,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* Primary Financial Metric Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Metric 1: Saldo Total das Contas (New Requested Card) */}
-        <div className="glass-card rounded-3xl p-5 border border-white/90 relative overflow-hidden group hover:border-[#11310C]/30 transition-all bg-gradient-to-br from-white via-white to-[#11310C]/5">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider">
-              Saldo das Contas
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-[#11310C]/10 text-[#11310C] flex items-center justify-center">
-              <Wallet className="w-4 h-4 text-[#11310C]" />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            {formatCurrency(currentMonthData.totalMoney)}
-          </div>
-          <div className="flex items-center gap-2 mt-2">
-            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#11310C]/10 text-[#11310C]">
-              4 Contas
-            </span>
-            <span className="text-[11px] font-medium text-[#11310C]/60">Sincronizado {selectedMonth}</span>
-          </div>
-        </div>
-
-        {/* Metric 2: Ganho no Mês */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric 1: Ganho no Mês */}
         <div className="glass-card rounded-3xl p-5 border border-white/90 relative overflow-hidden group hover:border-[#C4C240]/40 transition-all">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider">
@@ -280,18 +276,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#11310C" strokeOpacity={0.08} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#11310C', fontWeight: 600 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#11310C' }} tickFormatter={(v) => `R$${v/1000}k`} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#11310C',
-                    borderColor: '#C4C240',
-                    borderRadius: '16px',
-                    color: '#FAFBF6',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-                  }}
-                  formatter={(val: any) => formatCurrency(Number(val))}
-                />
+                <Tooltip content={<CustomAreaTooltip />} />
                 <Area type="monotone" dataKey="Renda" stroke="#11310C" strokeWidth={3} fillOpacity={1} fill="url(#colorRenda)" />
                 <Area type="monotone" dataKey="Sobra" stroke="#C4C240" strokeWidth={3} fillOpacity={1} fill="url(#colorSobra)" />
               </AreaChart>

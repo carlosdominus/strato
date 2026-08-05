@@ -9,7 +9,6 @@ import { CartoesAssinaturasView } from './components/CartoesAssinaturasView';
 import { DividasView } from './components/DividasView';
 import { MetasView } from './components/MetasView';
 import { ConfiguracoesView } from './components/ConfiguracoesView';
-import { PlanilhasView } from './components/PlanilhasView';
 import { ExtratoView } from './components/ExtratoView';
 
 import {
@@ -240,6 +239,7 @@ export function App() {
             selectedMonth={selectedMonth}
             onSelectMonth={setSelectedMonth}
             monthsList={monthsList}
+            investments={investments}
           />
         )}
 
@@ -274,14 +274,6 @@ export function App() {
           />
         )}
 
-        {activeTab === 'planilhas' && (
-          <PlanilhasView
-            spreadsheets={spreadsheets}
-            onAddSpreadsheet={handleAddSpreadsheet}
-            onImportCsvTransactions={handleImportCsvTransactions}
-          />
-        )}
-
         {activeTab === 'extrato' && (
           <ExtratoView
             transactions={transactions}
@@ -297,6 +289,8 @@ export function App() {
             onGoogleLogin={handleGoogleLogin}
             onGoogleLogout={handleGoogleLogout}
             spreadsheets={spreadsheets}
+            onAddSpreadsheet={handleAddSpreadsheet}
+            onImportCsvTransactions={handleImportCsvTransactions}
             onRefreshSheets={() => fetchLiveSheets()}
           />
         )}

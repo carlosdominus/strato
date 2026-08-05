@@ -99,15 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Quick spreadsheet indicator button */}
-          <button
-            onClick={() => onNavigateToTab('planilhas')}
-            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/80 hover:bg-white text-[#11310C] border border-[#11310C]/15 shadow-xs transition-all hover:border-[#C4C240] cursor-pointer"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-[#C4C240]" />
-            <span className="hidden lg:inline">Planilhas Conectadas</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          </button>
+          {/* Brand & Title */}
         </div>
 
         {/* Search & Month Filter & CTA & Settings */}

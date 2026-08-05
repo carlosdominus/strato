@@ -25,15 +25,28 @@ interface InvestimentosViewProps {
   onOpenManualModal: () => void;
 }
 
-const COLORS = ['#11310C', '#C4C240', '#4D7C0F', '#15803D', '#E13513'];
+const COLORS = ['#11310C', '#C4C240', '#4D7C0F', '#15803D', '#22C55E', '#166534', '#CA8A04'];
+
+const CustomPieTooltip = ({ active, payload, totalValue }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0];
+    const pct = totalValue > 0 ? ((data.value / totalValue) * 100).toFixed(1) : '0';
+    return (
+      <div className="bg-[#11310C] text-[#FAFBF6] border border-[#C4C240] px-3.5 py-2.5 rounded-2xl shadow-xl text-xs font-bold space-y-1 pointer-events-none z-50">
+        <p className="text-[#C4C240] font-extrabold text-xs">{data.name}</p>
+        <p className="text-white text-xs">
+          {formatCurrency(Number(data.value))} ({pct}%)
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
 
 export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
   investments,
   onOpenManualModal,
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<string>('todos');
-  const [pieMode, setPieMode] = useState<'ativo' | 'categoria'>('ativo');
-
   const totalInvested = investments.reduce((acc, item) => acc + item.amountInvested, 0);
   const totalCurrentValue = investments.reduce((acc, item) => acc + item.currentValue, 0);
   const totalProfit = totalCurrentValue - totalInvested;
@@ -42,32 +55,13 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
 
   // International assets total in USD (approx rate 5.60 BRL / USD)
   const usdExchangeRate = 5.60;
-  const internationalAssets = investments.filter((i) => i.category === 'Internacional');
-  const totalUsdValue = internationalAssets.reduce((acc, item) => acc + item.currentValue / usdExchangeRate, 0);
+  const totalUsdValue = totalCurrentValue / usdExchangeRate;
 
-  // Allocation data by Asset OR Category
-  const categoryTotals: Record<string, number> = {};
-  investments.forEach((inv) => {
-    categoryTotals[inv.category] = (categoryTotals[inv.category] || 0) + inv.currentValue;
-  });
-
-  const pieData =
-    pieMode === 'ativo'
-      ? investments.map((inv) => ({
-          name: inv.name,
-          value: inv.currentValue,
-          category: inv.category,
-        }))
-      : Object.keys(categoryTotals).map((cat) => ({
-          name: cat,
-          value: categoryTotals[cat],
-          category: cat,
-        }));
-
-  const filteredInvestments =
-    selectedCategory === 'todos'
-      ? investments
-      : investments.filter((i) => i.category === selectedCategory);
+  // Pie chart data by individual asset
+  const pieData = investments.map((inv) => ({
+    name: inv.name,
+    value: inv.currentValue,
+  }));
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 space-y-6 pb-12">
@@ -162,31 +156,7 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
               <h3 className="text-lg font-extrabold text-[#11310C]">
                 Alocação de <span className="font-serif italic font-bold text-xl text-[#C4C240]">Ativos</span>
               </h3>
-              <p className="text-xs text-[#11310C]/60">Passe o mouse para ver cada ativo específico</p>
-            </div>
-
-            {/* View Mode Toggle Switch */}
-            <div className="flex items-center gap-1 p-0.5 bg-[#11310C]/10 rounded-xl">
-              <button
-                onClick={() => setPieMode('ativo')}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
-                  pieMode === 'ativo'
-                    ? 'bg-[#11310C] text-[#FAFBF6]'
-                    : 'text-[#11310C]/70 hover:text-[#11310C]'
-                }`}
-              >
-                Por Ativo
-              </button>
-              <button
-                onClick={() => setPieMode('categoria')}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
-                  pieMode === 'categoria'
-                    ? 'bg-[#11310C] text-[#FAFBF6]'
-                    : 'text-[#11310C]/70 hover:text-[#11310C]'
-                }`}
-              >
-                Categoria
-              </button>
+              <p className="text-xs text-[#11310C]/60">Proporção por ativo individual</p>
             </div>
           </div>
 
@@ -206,27 +176,14 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#11310C',
-                    borderRadius: '16px',
-                    color: '#FAFBF6',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-                  }}
-                  formatter={(val: any, name: any, item: any) => [
-                    `${formatCurrency(Number(val))} (${((Number(val) / totalCurrentValue) * 100).toFixed(1)}%)`,
-                    item?.payload?.name || name,
-                  ]}
-                />
+                <Tooltip content={<CustomPieTooltip totalValue={totalCurrentValue} />} />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
           {/* Custom Legend */}
           <div className="space-y-2 pt-2 border-t border-[#11310C]/10 max-h-48 overflow-y-auto">
-            {pieData.slice(0, 7).map((item, idx) => (
+            {pieData.slice(0, 10).map((item, idx) => (
               <div key={item.name} className="flex items-center justify-between text-xs font-bold">
                 <div className="flex items-center gap-2 truncate">
                   <span
@@ -236,7 +193,7 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
                   <span className="text-[#11310C] truncate">{item.name}</span>
                 </div>
                 <span className="text-[#11310C] flex-shrink-0 ml-2">
-                  {((item.value / totalCurrentValue) * 100).toFixed(1)}%
+                  {totalCurrentValue > 0 ? ((item.value / totalCurrentValue) * 100).toFixed(1) : 0}%
                 </span>
               </div>
             ))}
@@ -252,23 +209,9 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
               </h3>
               <p className="text-xs text-[#11310C]/60">Sincronizado em R$ (BRL) e $ (USD)</p>
             </div>
-
-            {/* Category Filter Chips */}
-            <div className="flex items-center gap-1 overflow-x-auto">
-              {['todos', 'Internacional', 'Renda Fixa', 'FIIs', 'Ações', 'Cripto'].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
-                    selectedCategory === cat
-                      ? 'bg-[#11310C] text-[#FAFBF6]'
-                      : 'bg-[#11310C]/5 text-[#11310C]/70 hover:bg-[#11310C]/10'
-                  }`}
-                >
-                  {cat === 'todos' ? 'Todos' : cat}
-                </button>
-              ))}
-            </div>
+            <span className="text-xs font-extrabold text-[#11310C] bg-[#11310C]/5 px-3 py-1 rounded-full border border-[#11310C]/10">
+              {investments.length} Ativos Ativos
+            </span>
           </div>
 
           {/* Table */}
@@ -277,7 +220,6 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
               <thead>
                 <tr className="border-b border-[#11310C]/10 text-[10px] font-bold uppercase tracking-wider text-[#11310C]/60">
                   <th className="pb-2">Ativo</th>
-                  <th className="pb-2">Categoria</th>
                   <th className="pb-2 text-right">Aplicado</th>
                   <th className="pb-2 text-right">Valor Atual</th>
                   <th className="pb-2 text-right">Rentabilidade</th>
@@ -285,23 +227,15 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#11310C]/5 font-semibold">
-                {filteredInvestments.map((inv) => {
-                  const isIntl = inv.category === 'Internacional';
+                {investments.map((inv) => {
                   const usdVal = inv.currentValue / usdExchangeRate;
 
                   return (
                     <tr key={inv.id} className="hover:bg-white/60 transition-all">
                       <td className="py-3">
                         <div className="font-extrabold text-[#11310C]">{inv.name}</div>
-                        {isIntl && (
-                          <span className="text-[10px] text-emerald-800 font-bold block">
-                            ${usdVal.toFixed(2)} USD
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-[#11310C]/10 text-[#11310C]">
-                          {inv.category}
+                        <span className="text-[10px] text-emerald-800 font-bold block">
+                          ${usdVal.toFixed(2)} USD
                         </span>
                       </td>
                       <td className="py-3 text-right text-[#11310C]/80">

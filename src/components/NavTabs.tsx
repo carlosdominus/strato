@@ -43,7 +43,7 @@ export const TABS: TabItem[] = [
   },
   {
     id: 'dividas',
-    label: 'Dívidas & Devedores',
+    label: 'Devedores',
     icon: Target,
   },
   {
@@ -53,20 +53,9 @@ export const TABS: TabItem[] = [
     badge: 'Projeção',
   },
   {
-    id: 'planilhas',
-    label: 'Planilhas & Conexão',
-    icon: FileSpreadsheet,
-    badge: 'Google Sheets',
-  },
-  {
     id: 'extrato',
     label: 'Extrato',
     icon: ReceiptText,
-  },
-  {
-    id: 'configuracoes',
-    label: 'Configurações',
-    icon: Settings,
   },
 ];
 

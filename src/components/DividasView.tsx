@@ -35,13 +35,13 @@ export const DividasView: React.FC<DividasViewProps> = ({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-bold uppercase tracking-wider text-[#11310C]/60">
-              Gestão de Dívidas & Empréstimos
+              Gestão de Devedores & Créditos a Receber
             </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#E13513]" />
-            <span className="text-xs font-bold text-[#11310C]">Plano Estratégico</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#C4C240]" />
+            <span className="text-xs font-bold text-[#11310C]">Controle Ativo</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            Minhas <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#E13513]">Dívidas</span> & Valores a Receber
+            Meus <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#C4C240]">Devedores</span> & Empréstimos Concedidos
           </h1>
         </div>
 
