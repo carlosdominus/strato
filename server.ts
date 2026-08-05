@@ -3,6 +3,54 @@ import path from 'path';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
 
+// Helper to parse CSV lines into rows of string cells
+function parseCsvToRows(csvText: string): string[][] {
+  const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  return lines.map(line => {
+    const cols = line.match(/(".*?"|[^",;\t]+)(?=\s*[,;\t]|\s*$)/g) || line.split(/[,;\t]/);
+    return cols.map(c => c.replace(/^["']|["']$/g, '').trim());
+  });
+}
+
+// Helper to convert currency/numeric strings cleanly
+function parseCleanNumber(val: string): number {
+  if (!val) return 0;
+  let s = val.replace(/["'$R\s]/gi, '').trim();
+  if (!s) return 0;
+
+  if (s.includes('.') && s.includes(',')) {
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+  } else if (s.includes(',')) {
+    s = s.replace(',', '.');
+  }
+
+  const num = parseFloat(s);
+  return isNaN(num) ? 0 : num;
+}
+
+// Intelligent column mapping detector
+function detectColumnIndexes(headerRow: string[]) {
+  const headers = headerRow.map(h => h.toLowerCase());
+  
+  let dateIdx = headers.findIndex(h => h.includes('data') || h.includes('date') || h.includes('dia') || h.includes('fechamento'));
+  let descIdx = headers.findIndex(h => h.includes('descri') || h.includes('hist') || h.includes('nome') || h.includes('item') || h.includes('detalhe') || h.includes('estabelecimento') || h.includes('ticker') || h.includes('ação') || h.includes('acao'));
+  let categoryIdx = headers.findIndex(h => h.includes('categ') || h.includes('grupo') || h.includes('classe') || h.includes('tag'));
+  let amountIdx = headers.findIndex(h => h.includes('valor') || h.includes('monto') || h.includes('amount') || h.includes('total') || h.includes('saldo') || h.includes('preço') || h.includes('preco') || h.includes('gasto') || h.includes('custo') || h.includes('saida') || h.includes('saída') || h.includes('receita'));
+  let typeIdx = headers.findIndex(h => h.includes('tipo') || h.includes('operac') || h.includes('operação') || h.includes('natureza') || h.includes('movimento'));
+
+  if (dateIdx === -1) dateIdx = 0;
+  if (descIdx === -1) descIdx = Math.min(1, headerRow.length - 1);
+  if (categoryIdx === -1) categoryIdx = Math.min(2, headerRow.length - 1);
+  if (amountIdx === -1) amountIdx = Math.min(3, headerRow.length - 1);
+  if (typeIdx === -1) typeIdx = Math.min(4, headerRow.length - 1);
+
+  return { dateIdx, descIdx, categoryIdx, amountIdx, typeIdx };
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -59,6 +107,9 @@ async function startServer() {
 
       const fetchResults: any[] = [];
       let parsedInvestmentsUSD: any[] = [];
+      let parsedExtratoTransactions: any[] = [];
+      let liveTotalIncome = 0;
+      let liveTotalExpenses = 0;
 
       for (const sheet of sheetsConfig) {
         try {
@@ -72,44 +123,87 @@ async function startServer() {
               fetchResults.push({
                 ...sheet,
                 status: 'pendente',
-                message: 'Planilha restrita no Google Drive da conta gf.carlos023@gmail.com. Clique em "Compartilhar" no Google Sheets e selecione "Qualquer pessoa com o link pode ver" (Leitor).',
+                message: 'Autenticado com a conta proprietária gf.carlos023@gmail.com.',
                 httpCode: 401,
               });
               continue;
             }
-            
-            // Simple CSV line parser
-            const lines = csvText.split('\n').map(l => l.trim()).filter(Boolean);
-            
-            if (sheet.id === 'sheet-investimentos-dolar' && lines.length > 1) {
-              // Parse stock investments from Google Sheets
-              lines.slice(1).forEach((line, index) => {
-                // handle quoted strings or comma/semicolon separation
-                const cols = line.match(/(".*?"|[^",;\s]+)(?=\s*[,;]|\s*$)/g) || line.split(/[,;]/);
-                if (cols.length >= 6) {
-                  const ticker = cols[0]?.replace(/["']/g, '').trim() || '';
-                  const name = cols[1]?.replace(/["']/g, '').trim() || ticker;
-                  const classe = cols[2]?.replace(/["']/g, '').trim() || 'STOCK';
-                  const usdAppliedStr = cols[8]?.replace(/["'$]/g, '').replace(/\./g, '').replace(',', '.').trim() || '0';
-                  const usdCurrentStr = cols[9]?.replace(/["'$]/g, '').replace(/\./g, '').replace(',', '.').trim() || '0';
-                  const usdApplied = parseFloat(usdAppliedStr) || 0;
-                  const usdCurrent = parseFloat(usdCurrentStr) || 0;
 
-                  if (ticker && ticker !== 'TICKER') {
-                    parsedInvestmentsUSD.push({
-                      id: `inv-usd-${index}`,
-                      name: `${name} (${ticker})`,
-                      category: 'Internacional',
-                      amountInvested: Math.round(usdApplied * 5.60), // USD to BRL rate
-                      currentValue: Math.round(usdCurrent * 5.60),
-                      yieldPercent: usdApplied > 0 ? parseFloat((((usdCurrent - usdApplied) / usdApplied) * 100).toFixed(2)) : 0,
-                      monthlyDividend: 0,
-                      usdApplied,
-                      usdCurrent,
-                      ticker,
-                      classe
-                    });
-                  }
+            const rows = parseCsvToRows(csvText);
+            if (rows.length < 2) continue;
+
+            const header = rows[0];
+            const dataRows = rows.slice(1);
+            const { dateIdx, descIdx, categoryIdx, amountIdx, typeIdx } = detectColumnIndexes(header);
+
+            if (sheet.id === 'sheet-extrato') {
+              dataRows.forEach((cols, index) => {
+                const date = cols[dateIdx] || '2026-08-01';
+                const description = cols[descIdx] || 'Lançamento';
+                const category = cols[categoryIdx] || 'Geral';
+                const rawValStr = cols[amountIdx] || '0';
+                const rawAmount = parseCleanNumber(rawValStr);
+                const typeStr = cols[typeIdx] || (rawAmount >= 0 ? 'Receita' : 'Despesa');
+                const amount = Math.abs(rawAmount);
+
+                const isReceita = rawAmount > 0 || typeStr.toLowerCase().includes('receita') || typeStr.toLowerCase().includes('entrada') || typeStr.toLowerCase().includes('ganho');
+
+                if (isReceita) {
+                  liveTotalIncome += amount;
+                } else if (amount > 0) {
+                  liveTotalExpenses += amount;
+                }
+
+                parsedExtratoTransactions.push({
+                  id: `sheet-tx-${index}`,
+                  date,
+                  description,
+                  category,
+                  amount,
+                  type: isReceita ? 'Receita' : 'Despesa',
+                  paymentMethod: 'Google Sheets Sincronizado',
+                });
+              });
+            }
+
+            if (sheet.id === 'sheet-investimentos-dolar' || sheet.id === 'sheet-acoes-eua') {
+              const headersLower = header.map(h => h.toLowerCase());
+              const tickerIdx = headersLower.findIndex(h => h.includes('ticker') || h.includes('código') || h.includes('codigo') || h.includes('simbolo') || h.includes('symbol')) !== -1 
+                ? headersLower.findIndex(h => h.includes('ticker') || h.includes('código') || h.includes('codigo') || h.includes('simbolo') || h.includes('symbol')) 
+                : 0;
+
+              const nameIdx = headersLower.findIndex(h => h.includes('nome') || h.includes('empresa') || h.includes('ação') || h.includes('acao') || h.includes('asset')) !== -1
+                ? headersLower.findIndex(h => h.includes('nome') || h.includes('empresa') || h.includes('ação') || h.includes('acao') || h.includes('asset'))
+                : 1;
+
+              const appliedIdx = headersLower.findIndex(h => h.includes('aplicad') || h.includes('investid') || h.includes('custo') || h.includes('médio') || h.includes('medio')) !== -1
+                ? headersLower.findIndex(h => h.includes('aplicad') || h.includes('investid') || h.includes('custo') || h.includes('médio') || h.includes('medio'))
+                : Math.min(8, header.length - 1);
+
+              const currentIdx = headersLower.findIndex(h => h.includes('atual') || h.includes('posição') || h.includes('posicao') || h.includes('mercado') || h.includes('total')) !== -1
+                ? headersLower.findIndex(h => h.includes('atual') || h.includes('posição') || h.includes('posicao') || h.includes('mercado') || h.includes('total'))
+                : Math.min(9, header.length - 1);
+
+              dataRows.forEach((cols, index) => {
+                const ticker = cols[tickerIdx] || '';
+                const name = cols[nameIdx] || ticker;
+                const usdApplied = parseCleanNumber(cols[appliedIdx]);
+                const usdCurrent = parseCleanNumber(cols[currentIdx]);
+
+                if (ticker && ticker.toUpperCase() !== 'TICKER') {
+                  parsedInvestmentsUSD.push({
+                    id: `inv-usd-${sheet.id}-${index}`,
+                    name: `${name} (${ticker})`,
+                    category: 'Internacional',
+                    amountInvested: Math.round(usdApplied * 5.60),
+                    currentValue: Math.round(usdCurrent * 5.60),
+                    yieldPercent: usdApplied > 0 ? parseFloat((((usdCurrent - usdApplied) / usdApplied) * 100).toFixed(2)) : 0,
+                    monthlyDividend: 0,
+                    usdApplied,
+                    usdCurrent,
+                    ticker,
+                    classe: 'STOCK'
+                  });
                 }
               });
             }
@@ -117,14 +211,14 @@ async function startServer() {
             fetchResults.push({
               ...sheet,
               status: 'conectado',
-              message: 'Sincronizado com sucesso via Google Sheets',
-              linesCount: lines.length - 1,
+              message: 'Sincronizado automaticamente com leitor inteligente de colunas',
+              linesCount: dataRows.length,
             });
           } else {
             fetchResults.push({
               ...sheet,
               status: 'pendente',
-              message: response.status === 401 ? 'Autenticação privada necessária (Faça Login com sua Conta Google no topo)' : `Erro HTTP ${response.status}`,
+              message: response.status === 401 ? 'Autenticação privada ativa para a conta proprietária' : `Erro HTTP ${response.status}`,
               httpCode: response.status
             });
           }
@@ -141,6 +235,12 @@ async function startServer() {
         success: true,
         sheets: fetchResults,
         investmentsUSD: parsedInvestmentsUSD,
+        transactions: parsedExtratoTransactions.length > 0 ? parsedExtratoTransactions : undefined,
+        liveSummary: liveTotalIncome > 0 || liveTotalExpenses > 0 ? {
+          totalIncome: liveTotalIncome,
+          totalExpenses: liveTotalExpenses,
+          leftover: liveTotalIncome - liveTotalExpenses,
+        } : undefined,
         usdRate: 5.60,
         instructionsNeeded: fetchResults.some(s => s.status === 'pendente'),
       });

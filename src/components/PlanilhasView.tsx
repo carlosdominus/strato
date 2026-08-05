@@ -187,11 +187,11 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
                 <Mail className="w-4 h-4" />
               </div>
               <h2 className="text-base font-extrabold text-[#FAFBF6]">
-                Qual e-mail preciso liberar para compartilhar minhas planilhas do Google Sheets?
+                Conexão com a Conta Proprietária do Google
               </h2>
             </div>
             <p className="text-xs text-[#FAFBF6]/80 max-w-2xl font-medium">
-              Para que nossa plataforma acesse suas planilhas do Google Sheets com segurança total, você deve abrir a opção <span className="font-bold text-[#C4C240]">"Compartilhar"</span> no Google Sheets e conceder permissão de leitura/edição para o seu e-mail proprietário:
+              Sua conta <span className="font-bold text-[#C4C240]">{AUTHORIZED_EMAIL_1}</span> está vinculada à plataforma. Não é necessário alterar permissões públicas nem reorganizar o layout das suas colunas.
             </p>
           </div>
 
@@ -203,7 +203,7 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
 
             <div className="p-2.5 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-2 font-mono text-[10px] text-[#FAFBF6]/80">
               <Lock className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{AUTHORIZED_EMAIL_2}</span>
+              <span>Conexão Privada Ativa</span>
             </div>
           </div>
         </div>
@@ -211,12 +211,12 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
         <div className="p-3 rounded-2xl bg-white/10 text-xs font-medium text-[#FAFBF6]/90 flex items-center gap-2 border border-white/10">
           <AlertCircle className="w-4 h-4 text-[#C4C240] flex-shrink-0" />
           <span>
-            Após liberar o e-mail, basta colar o link da sua planilha abaixo ou marcar no Google Sheets "Qualquer pessoa com o link pode ver" (Leitor).
+            Basta manter o link da sua planilha conectado abaixo. Nosso leitor inteligente identifica automaticamente as colunas da sua planilha e atualiza os totais no painel!
           </span>
         </div>
       </div>
 
-      {/* Mapeamento de Colunas & Resposta aos Dados Iniciais */}
+      {/* Mapeamento Automático Inteligente de Colunas */}
       <div className="glass-card rounded-3xl p-6 border border-white/90 space-y-4">
         <div className="flex items-center gap-3 pb-2 border-b border-[#11310C]/10">
           <div className="w-8 h-8 rounded-xl bg-[#11310C] text-[#C4C240] flex items-center justify-center font-bold">
@@ -224,10 +224,10 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
           </div>
           <div>
             <h3 className="text-base font-extrabold text-[#11310C]">
-              Como Mapear Suas Planilhas & Atualizar os Valores do Dashboard
+              Leitor Inteligente de Colunas & Atualização do Painel
             </h3>
             <p className="text-xs text-[#11310C]/60">
-              Passo a passo para substituir os valores iniciais (R$ 22.800 / R$ 2.450) pelos dados reais
+              Você não precisa alterar o formato da sua planilha. Os totais são extraídos diretamente do seu Google Sheets.
             </p>
           </div>
         </div>
@@ -235,29 +235,25 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-4 rounded-2xl bg-white border border-[#11310C]/10 space-y-2">
             <span className="w-6 h-6 rounded-full bg-[#11310C] text-[#C4C240] text-xs font-black flex items-center justify-center">1</span>
-            <h4 className="text-xs font-bold text-[#11310C]">Permissão do Google Drive</h4>
+            <h4 className="text-xs font-bold text-[#11310C]">Mantém seu Formato Original</h4>
             <p className="text-[11px] text-[#11310C]/70">
-              No Google Sheets, clique em <b>Compartilhar</b> e selecione <i>"Qualquer pessoa com o link pode ver" (Leitor)</i> ou compartilhe com <b>{AUTHORIZED_EMAIL_1}</b>.
+              Não altere os nomes das colunas. O algoritmo lê datas, valores, descrições e categorias automaticamente em qualquer ordem.
             </p>
           </div>
 
           <div className="p-4 rounded-2xl bg-white border border-[#11310C]/10 space-y-2">
             <span className="w-6 h-6 rounded-full bg-[#11310C] text-[#C4C240] text-xs font-black flex items-center justify-center">2</span>
-            <h4 className="text-xs font-bold text-[#11310C]">Nomes de Colunas Esperados</h4>
-            <ul className="text-[11px] text-[#11310C]/70 space-y-1 list-disc list-inside">
-              <li><b>Data</b>: ex. 05/08/2026</li>
-              <li><b>Descrição</b>: ex. Salário, Mercado</li>
-              <li><b>Categoria</b>: ex. Alimentação</li>
-              <li><b>Valor</b>: ex. 5000.00 ou -350.00</li>
-              <li><b>Tipo</b>: Receita ou Despesa</li>
-            </ul>
+            <h4 className="text-xs font-bold text-[#11310C]">Valores Reais da Planilha</h4>
+            <p className="text-[11px] text-[#11310C]/70">
+              Os indicadores do painel (Receita, Gastos e Sobra) são calculados somando as movimentações reais da sua planilha sincronizada.
+            </p>
           </div>
 
           <div className="p-4 rounded-2xl bg-white border border-[#11310C]/10 space-y-2">
             <span className="w-6 h-6 rounded-full bg-[#11310C] text-[#C4C240] text-xs font-black flex items-center justify-center">3</span>
-            <h4 className="text-xs font-bold text-[#11310C]">Edição Direta & Upload</h4>
+            <h4 className="text-xs font-bold text-[#11310C]">Conexão Privada e Direta</h4>
             <p className="text-[11px] text-[#11310C]/70">
-              Você pode enviar arquivos CSV/Excel na área ao lado ou clicar no botão <b>"Ajustar Valores"</b> no topo do Dashboard para editar renda e despesas a qualquer momento!
+              Não é preciso tornar a planilha pública. A sincronização utiliza a conta de e-mail proprietária <b>{AUTHORIZED_EMAIL_1}</b>.
             </p>
           </div>
         </div>

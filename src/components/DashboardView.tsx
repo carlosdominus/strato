@@ -160,16 +160,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Action Controls & Range Filter */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Quick Edit Values Button */}
-          <button
-            onClick={() => setIsAdjustModalOpen(true)}
-            className="px-3.5 py-2 bg-white/80 hover:bg-white text-[#11310C] border border-[#11310C]/15 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-xs hover:border-[#C4C240]"
-            title="Ajustar valores do mês manualmente"
-          >
-            <Edit3 className="w-3.5 h-3.5 text-[#11310C]" />
-            <span>Ajustar Valores</span>
-          </button>
-
           {/* Range Chips Pill Container */}
           <div className="inline-flex items-center gap-1 p-1 bg-[#11310C]/5 rounded-2xl border border-[#11310C]/10 max-w-full flex-wrap sm:flex-nowrap">
             {[
@@ -612,96 +602,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 Aplicar Filtro
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Adjust Month Values Quick Modal */}
-      {isAdjustModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#FAFBF6] border border-[#11310C]/20 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-[#11310C]/10">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-[#C4C240]/30 text-[#11310C] flex items-center justify-center">
-                  <Sliders className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-extrabold text-[#11310C]">
-                    Ajustar Totais do Mês
-                  </h3>
-                  <p className="text-[11px] text-[#11310C]/60 font-semibold">{selectedMonth}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsAdjustModalOpen(false)}
-                className="p-1.5 text-[#11310C]/60 hover:text-[#11310C] rounded-xl hover:bg-[#11310C]/5 transition-all cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-[#11310C]/70">
-              Edite diretamente os valores acumulados para este mês. Isso atualizará os indicadores do painel imediatamente:
-            </p>
-
-            <form onSubmit={handleSaveAdjustments} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-[#11310C]/80">Ganhos do Mês (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={editIncome}
-                  onChange={(e) => setEditIncome(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-[#11310C]/15 rounded-xl text-sm font-extrabold text-[#11310C] focus:outline-none focus:border-[#C4C240]"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-[#11310C]/80">Gastos do Mês (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={editExpenses}
-                  onChange={(e) => setEditExpenses(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-[#11310C]/15 rounded-xl text-sm font-extrabold text-[#E13513] focus:outline-none focus:border-[#E13513]"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-[#11310C]/80">Investimentos Acumulados (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={editInvestments}
-                  onChange={(e) => setEditInvestments(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-[#11310C]/15 rounded-xl text-sm font-extrabold text-[#11310C] focus:outline-none focus:border-[#C4C240]"
-                />
-              </div>
-
-              <div className="p-3 bg-[#11310C]/5 rounded-2xl border border-[#11310C]/10 flex items-center justify-between">
-                <span className="text-xs font-bold text-[#11310C]/70">Sobrou Calculado:</span>
-                <span className="text-sm font-black text-[#11310C]">
-                  {formatCurrency(editIncome - editExpenses)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAdjustModalOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-[#11310C]/70 hover:text-[#11310C] cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 bg-[#11310C] text-[#C4C240] rounded-xl text-xs font-extrabold shadow-md hover:bg-[#11310C]/90 transition-all cursor-pointer flex items-center gap-2"
-                >
-                  <Check className="w-4 h-4" />
-                  Salvar Alterações
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

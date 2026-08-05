@@ -84,6 +84,22 @@ export function App() {
             return [...nonUs, ...data.investmentsUSD];
           });
         }
+
+        if (data.transactions && Array.isArray(data.transactions) && data.transactions.length > 0) {
+          setTransactions(data.transactions);
+        }
+
+        if (data.liveSummary) {
+          setMonthsData((prev) => ({
+            ...prev,
+            'Agosto 2026': {
+              ...prev['Agosto 2026'],
+              totalIncome: data.liveSummary.totalIncome,
+              totalExpenses: data.liveSummary.totalExpenses,
+              leftover: data.liveSummary.leftover,
+            },
+          }));
+        }
       }
     } catch (err) {
       console.error('Failed to sync live sheets:', err);
