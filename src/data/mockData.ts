@@ -1,0 +1,457 @@
+import {
+  Transaction,
+  CreditCardSheet,
+  Investment,
+  Debt,
+  Subscription,
+  SpreadsheetConnection,
+  MonthSummaryData,
+} from '../types';
+
+export const INITIAL_MONTHS = [
+  'Março 2026',
+  'Abril 2026',
+  'Maio 2026',
+  'Junho 2026',
+  'Julho 2026',
+  'Agosto 2026',
+];
+
+export const MONTHLY_HISTORICAL_DATA: Record<string, MonthSummaryData> = {
+  'Março 2026': {
+    month: 'Março 2026',
+    totalMoney: 118400,
+    totalIncome: 18200,
+    totalExpenses: 11450,
+    leftover: 6750,
+    totalInvestments: 84000,
+    totalDebts: 42000,
+    activeSubscriptionsCount: 6,
+    monthlyGrowthPercent: 3.8,
+  },
+  'Abril 2026': {
+    month: 'Abril 2026',
+    totalMoney: 124200,
+    totalIncome: 18500,
+    totalExpenses: 12100,
+    leftover: 6400,
+    totalInvestments: 89500,
+    totalDebts: 40500,
+    activeSubscriptionsCount: 6,
+    monthlyGrowthPercent: 4.9,
+  },
+  'Maio 2026': {
+    month: 'Maio 2026',
+    totalMoney: 129800,
+    totalIncome: 19200,
+    totalExpenses: 13800,
+    leftover: 5400,
+    totalInvestments: 94200,
+    totalDebts: 39000,
+    activeSubscriptionsCount: 7,
+    monthlyGrowthPercent: -1.2,
+  },
+  'Junho 2026': {
+    month: 'Junho 2026',
+    totalMoney: 136500,
+    totalIncome: 21000,
+    totalExpenses: 12300,
+    leftover: 8700,
+    totalInvestments: 101000,
+    totalDebts: 37500,
+    activeSubscriptionsCount: 7,
+    monthlyGrowthPercent: 5.1,
+  },
+  'Julho 2026': {
+    month: 'Julho 2026',
+    totalMoney: 142900,
+    totalIncome: 20500,
+    totalExpenses: 11900,
+    leftover: 8600,
+    totalInvestments: 108400,
+    totalDebts: 36000,
+    activeSubscriptionsCount: 5,
+    monthlyGrowthPercent: 4.7,
+  },
+  'Agosto 2026': {
+    month: 'Agosto 2026',
+    totalMoney: 151280,
+    totalIncome: 22800,
+    totalExpenses: 12450,
+    leftover: 10350,
+    totalInvestments: 116800,
+    totalDebts: 34500,
+    activeSubscriptionsCount: 5,
+    monthlyGrowthPercent: 5.8,
+  },
+};
+
+export const INITIAL_TRANSACTIONS: Transaction[] = [
+  {
+    id: 'tx-101',
+    date: '2026-08-04',
+    description: 'Recebimento de Pró-labore Dominus Tech',
+    category: 'Salário & Renda',
+    amount: 18500,
+    type: 'income',
+    paymentMethod: 'Pix Itaú Personnalité',
+    sourceSheet: 'Planilha_Extrato_Bancario.xlsx',
+    status: 'concluido',
+  },
+  {
+    id: 'tx-102',
+    date: '2026-08-03',
+    description: 'Dividendos HGLG11 + XPLG11',
+    category: 'Investimentos',
+    amount: 1850,
+    type: 'income',
+    paymentMethod: 'XP Corretora',
+    sourceSheet: 'Planilha_Investimentos.xlsx',
+    status: 'concluido',
+  },
+  {
+    id: 'tx-103',
+    date: '2026-08-03',
+    description: 'Rendimento CDB 120% CDI BTG',
+    category: 'Investimentos',
+    amount: 2450,
+    type: 'income',
+    paymentMethod: 'BTG Pactual',
+    sourceSheet: 'Planilha_Investimentos.xlsx',
+    status: 'concluido',
+  },
+  {
+    id: 'tx-104',
+    date: '2026-08-02',
+    description: 'Condomínio & Aluguel Residencial',
+    category: 'Moradia',
+    amount: 4800,
+    type: 'expense',
+    paymentMethod: 'Boleto Itaú',
+    sourceSheet: 'Planilha_Extrato_Bancario.xlsx',
+    status: 'concluido',
+  },
+  {
+    id: 'tx-105',
+    date: '2026-08-02',
+    description: 'Fatura Cartão Nubank Violeta',
+    category: 'Cartão de Crédito',
+    amount: 3250,
+    type: 'expense',
+    paymentMethod: 'Débito Automático',
+    sourceSheet: 'Planilha_Cartoes_Agosto.xlsx',
+    status: 'concluido',
+  },
+  {
+    id: 'tx-106',
+    date: '2026-08-01',
+    description: 'Supermercado St. Marche',
+    category: 'Alimentação',
+    amount: 1420,
+    type: 'expense',
+    paymentMethod: 'Visa Infinite Itaú',
+    sourceSheet: 'Planilha_Cartoes_Agosto.xlsx',
+    status: 'concluido',
+  },
+  {
+    id: 'tx-107',
+    date: '2026-08-01',
+    description: 'ChatGPT Plus + Claude Pro Subscriptions',
+    category: 'Assinaturas',
+    amount: 240,
+    type: 'expense',
+    paymentMethod: 'Mastercard XP',
+    sourceSheet: 'Planilha_Assinaturas.xlsx',
+    status: 'concluido',
+  },
+  {
+    id: 'tx-108',
+    date: '2026-07-29',
+    description: 'Parcela Financiamento Imobiliário',
+    category: 'Dívidas & Habitação',
+    amount: 2150,
+    type: 'expense',
+    paymentMethod: 'Caixa Econômica',
+    sourceSheet: 'Planilha_Dividas.xlsx',
+    status: 'concluido',
+  },
+  {
+    id: 'tx-109',
+    date: '2026-07-28',
+    description: 'Posto de Combustível Shell Box',
+    category: 'Transporte',
+    amount: 380,
+    type: 'expense',
+    paymentMethod: 'Visa Infinite Itaú',
+    sourceSheet: 'Planilha_Cartoes_Agosto.xlsx',
+    status: 'concluido',
+  },
+  {
+    id: 'tx-110',
+    date: '2026-07-26',
+    description: 'Consulta Médica Particular',
+    category: 'Saúde',
+    amount: 600,
+    type: 'expense',
+    paymentMethod: 'Pix Itaú',
+    sourceSheet: 'Planilha_Extrato_Bancario.xlsx',
+    status: 'concluido',
+  },
+];
+
+export const INITIAL_CARDS: CreditCardSheet[] = [
+  {
+    id: 'card-1',
+    name: 'Itaú Personnalité Visa Infinite',
+    bank: 'Itaú Unibanco',
+    lastDigits: '8842',
+    closingDay: 12,
+    dueDay: 20,
+    currentInvoice: 4850.30,
+    limit: 50000,
+    status: 'aberta',
+  },
+  {
+    id: 'card-2',
+    name: 'Nubank Ultravioleta Mastercard',
+    bank: 'Nubank',
+    lastDigits: '3109',
+    closingDay: 25,
+    dueDay: 5,
+    currentInvoice: 3250.00,
+    limit: 35000,
+    status: 'fechada',
+  },
+  {
+    id: 'card-3',
+    name: 'XP Visa Infinite One',
+    bank: 'XP Investimentos',
+    lastDigits: '6014',
+    closingDay: 18,
+    dueDay: 26,
+    currentInvoice: 1420.80,
+    limit: 25000,
+    status: 'aberta',
+  },
+];
+
+export const INITIAL_INVESTMENTS: Investment[] = [
+  {
+    id: 'inv-1',
+    name: 'Realty Income Corp (O)',
+    category: 'Internacional',
+    amountInvested: 2629, // $469.48 * 5.60
+    currentValue: 2868,   // $512.26 * 5.60
+    yieldPercent: 9.11,
+    monthlyDividend: 18,
+  },
+  {
+    id: 'inv-2',
+    name: 'Invesco QQQ Trust (QQQ)',
+    category: 'Internacional',
+    amountInvested: 858,  // $153.27 * 5.60
+    currentValue: 1893,  // $338.18 * 5.60
+    yieldPercent: 120.65,
+    monthlyDividend: 0,
+  },
+  {
+    id: 'inv-3',
+    name: 'Verizon Communications (VZ)',
+    category: 'Internacional',
+    amountInvested: 560,  // $100.13 * 5.60
+    currentValue: 770,   // $137.58 * 5.60
+    yieldPercent: 37.40,
+    monthlyDividend: 8,
+  },
+  {
+    id: 'inv-4',
+    name: 'CMS Energy Corp (CMS)',
+    category: 'Internacional',
+    amountInvested: 629,  // $112.49 * 5.60
+    currentValue: 717,   // $128.16 * 5.60
+    yieldPercent: 13.93,
+    monthlyDividend: 6,
+  },
+  {
+    id: 'inv-5',
+    name: 'Johnson & Johnson (JNJ)',
+    category: 'Internacional',
+    amountInvested: 459,  // $82.09 * 5.60
+    currentValue: 750,   // $134.02 * 5.60
+    yieldPercent: 63.26,
+    monthlyDividend: 5,
+  },
+  {
+    id: 'inv-6',
+    name: 'Shell PLC (SHEL)',
+    category: 'Internacional',
+    amountInvested: 455,  // $81.40 * 5.60
+    currentValue: 610,   // $109.08 * 5.60
+    yieldPercent: 34.01,
+    monthlyDividend: 4,
+  },
+  {
+    id: 'inv-7',
+    name: 'Stag Industrial Inc (STAG)',
+    category: 'Internacional',
+    amountInvested: 397,  // $71.05 * 5.60
+    currentValue: 419,   // $74.88 * 5.60
+    yieldPercent: 5.40,
+    monthlyDividend: 3,
+  },
+  {
+    id: 'inv-8',
+    name: 'JPMorgan Chase & Co (JPM)',
+    category: 'Internacional',
+    amountInvested: 225,  // $40.21 * 5.60
+    currentValue: 562,   // $100.41 * 5.60
+    yieldPercent: 149.71,
+    monthlyDividend: 2,
+  },
+];
+
+export const INITIAL_DEBTS: Debt[] = [
+  {
+    id: 'debt-1',
+    creditor: 'Caixa Econômica Federal',
+    type: 'Financiamento Imobiliário TR',
+    totalAmount: 180000,
+    remainingAmount: 32000,
+    interestRate: '0.65% a.m.',
+    monthlyPayment: 2150,
+    dueDate: 'Todo dia 29',
+  },
+  {
+    id: 'debt-2',
+    creditor: 'Itaú Consignado Empresarial',
+    type: 'Empréstimo de Capital Inicial',
+    totalAmount: 15000,
+    remainingAmount: 2500,
+    interestRate: '1.1% a.m.',
+    monthlyPayment: 850,
+    dueDate: 'Todo dia 15',
+  },
+];
+
+export const INITIAL_SUBSCRIPTIONS: Subscription[] = [
+  {
+    id: 'sub-1',
+    serviceName: 'ChatGPT Plus OpenAI',
+    category: 'Produtividade & IA',
+    monthlyPrice: 110,
+    renewalDay: 14,
+    active: true,
+  },
+  {
+    id: 'sub-2',
+    serviceName: 'Claude Pro Anthropic',
+    category: 'Produtividade & IA',
+    monthlyPrice: 110,
+    renewalDay: 22,
+    active: true,
+  },
+  {
+    id: 'sub-3',
+    serviceName: 'Gympass Black Family',
+    category: 'Saúde & Bem-Estar',
+    monthlyPrice: 280,
+    renewalDay: 5,
+    active: true,
+  },
+  {
+    id: 'sub-4',
+    serviceName: 'Netflix Premium 4K',
+    category: 'Entretenimento',
+    monthlyPrice: 59.90,
+    renewalDay: 18,
+    active: true,
+    cancelRecommendation: true,
+  },
+  {
+    id: 'sub-5',
+    serviceName: 'Spotify Family Premium',
+    category: 'Música',
+    monthlyPrice: 34.90,
+    renewalDay: 28,
+    active: true,
+  },
+];
+
+export const INITIAL_SPREADSHEETS: SpreadsheetConnection[] = [
+  {
+    id: 'sheet-extrato',
+    type: 'extrato',
+    title: 'Extrato Bancário',
+    description: 'Aba principal de lançamentos, receitas e despesas correntes.',
+    lastSync: 'Sincronizado via Google API',
+    status: 'conectado',
+    recordsCount: 148,
+    fileName: 'Extrato_Bancario_GoogleSheets',
+    sheetUrl: 'https://docs.google.com/spreadsheets/d/1X2z-2WEBUwn7mXRYa7oiJhh7rgdCZ6aiYXk8HArhG-M/edit?gid=0#gid=0',
+  },
+  {
+    id: 'sheet-cartoes',
+    type: 'cartoes',
+    title: 'Cartões & Fechamentos',
+    description: 'Gestão de faturas de cartão de crédito e datas de fechamento.',
+    lastSync: 'Sincronizado via Google API',
+    status: 'conectado',
+    recordsCount: 64,
+    fileName: 'Cartoes_Fechamentos_GoogleSheets',
+    sheetUrl: 'https://docs.google.com/spreadsheets/d/1X2z-2WEBUwn7mXRYa7oiJhh7rgdCZ6aiYXk8HArhG-M/edit?usp=sharing',
+  },
+  {
+    id: 'sheet-assinaturas',
+    type: 'assinaturas',
+    title: 'Assinaturas Fixas',
+    description: 'Aba de assinaturas recorrentes e custos mentais fixos.',
+    lastSync: 'Sincronizado via Google API',
+    status: 'conectado',
+    recordsCount: 12,
+    fileName: 'Assinaturas_Recorrentes_GoogleSheets',
+    sheetUrl: 'https://docs.google.com/spreadsheets/d/1X2z-2WEBUwn7mXRYa7oiJhh7rgdCZ6aiYXk8HArhG-M/edit?gid=1972460113#gid=1972460113',
+  },
+  {
+    id: 'sheet-totais',
+    type: 'total_mes',
+    title: 'Total Mensal do Saldo das Contas',
+    description: 'Balanço consolidado de contas bancárias e liquidez.',
+    lastSync: 'Sincronizado via Google API',
+    status: 'conectado',
+    recordsCount: 24,
+    fileName: 'Total_Mensal_Saldo_GoogleSheets',
+    sheetUrl: 'https://docs.google.com/spreadsheets/d/1Y2hEw_g4tPKK9dWP5LDgTqKzsExSAZcoQ5ZvZunP9x4/edit?gid=0#gid=0',
+  },
+  {
+    id: 'sheet-investimentos-dolar',
+    type: 'investimentos',
+    title: 'Investimentos em Dólar',
+    description: 'Carteira de investimentos internacionais e conversão cambial.',
+    lastSync: 'Sincronizado via Google API',
+    status: 'conectado',
+    recordsCount: 18,
+    fileName: 'Investimento_Dolar_GoogleSheets',
+    sheetUrl: 'https://docs.google.com/spreadsheets/d/1fv-MsaKURTBGIB8a3UWfLNKa5Yx6AfHXWTTYPZ1iB3c/edit?gid=0#gid=0',
+  },
+  {
+    id: 'sheet-acoes-eua',
+    type: 'investimentos',
+    title: 'Preço Médio de Ações nos EUA',
+    description: 'Preço médio de aquisição de equities, stocks e BDRs americanos.',
+    lastSync: 'Sincronizado via Google API',
+    status: 'conectado',
+    recordsCount: 30,
+    fileName: 'Acoes_EUA_PrecoMedio_GoogleSheets',
+    sheetUrl: 'https://docs.google.com/spreadsheets/d/1fv-MsaKURTBGIB8a3UWfLNKa5Yx6AfHXWTTYPZ1iB3c/edit?gid=1397919368#gid=1397919368',
+  },
+];
+
+export const MOCK_TRANSACTIONS = INITIAL_TRANSACTIONS;
+export const MOCK_MONTHS_SUMMARY = MONTHLY_HISTORICAL_DATA;
+export const MOCK_CREDIT_CARDS = INITIAL_CARDS;
+export const MOCK_INVESTMENTS = INITIAL_INVESTMENTS;
+export const MOCK_DEBTS = INITIAL_DEBTS;
+export const MOCK_SUBSCRIPTIONS = INITIAL_SUBSCRIPTIONS;
+export const MOCK_SPREADSHEETS = INITIAL_SPREADSHEETS;
+
+

@@ -1,0 +1,6 @@
+{
+  "name": "Dominus Financial - Gestão & Planilhas",
+  "description": "Plataforma moderna de controle financeiro integrada a planilhas com design iOS Liquid Glass, recomendação por IA e paleta Citron.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

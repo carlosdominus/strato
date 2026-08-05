@@ -1,0 +1,479 @@
+import React, { useState, useEffect } from 'react';
+import {
+  TrendingUp,
+  ArrowUpRight,
+  ArrowDownRight,
+  Wallet,
+  Sparkles,
+  CreditCard,
+  FileSpreadsheet,
+  ArrowRight,
+  CheckCircle2,
+  RefreshCw,
+} from 'lucide-react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
+import { MonthSummaryData, Transaction, CreditCardSheet, AIRecommendation } from '../types';
+import { formatCurrency, formatPercent, formatDateBR } from '../utils/formatters';
+
+interface DashboardViewProps {
+  currentMonthData: MonthSummaryData;
+  allMonthsData: Record<string, MonthSummaryData>;
+  recentTransactions: Transaction[];
+  creditCards: CreditCardSheet[];
+  selectedMonth: string;
+  onNavigateToTab: (tabId: string) => void;
+  onOpenManualModal: () => void;
+}
+
+export const DashboardView: React.FC<DashboardViewProps> = ({
+  currentMonthData,
+  allMonthsData,
+  recentTransactions,
+  creditCards,
+  selectedMonth,
+  onNavigateToTab,
+  onOpenManualModal,
+}) => {
+  const [timeRange, setTimeRange] = useState<'este-mes' | 'semana' | '3-meses' | 'ano'>('este-mes');
+  const [aiRecommendations, setAiRecommendations] = useState<AIRecommendation[]>([]);
+  const [isLoadingAi, setIsLoadingAi] = useState(false);
+
+  // Fetch AI Recommendations from server route
+  const fetchAiInsights = async () => {
+    setIsLoadingAi(true);
+    try {
+      const response = await fetch('/api/ai-recommendations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          month: selectedMonth,
+          totalIncome: currentMonthData.totalIncome,
+          totalExpenses: currentMonthData.totalExpenses,
+          totalInvestments: currentMonthData.totalInvestments,
+          totalDebts: currentMonthData.totalDebts,
+          activeSubscriptions: currentMonthData.activeSubscriptionsCount,
+          leftover: currentMonthData.leftover,
+        }),
+      });
+      const data = await response.json();
+      if (data.recommendations && Array.isArray(data.recommendations)) {
+        setAiRecommendations(data.recommendations);
+      }
+    } catch (err) {
+      console.error('Failed to load AI insights:', err);
+    } finally {
+      setIsLoadingAi(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAiInsights();
+  }, [selectedMonth, currentMonthData.totalIncome, currentMonthData.totalExpenses]);
+
+  // Transform monthly data for chart
+  const chartData = Object.keys(allMonthsData).map((m) => {
+    const item = allMonthsData[m];
+    return {
+      name: m.split(' ')[0], // "Março", "Abril"
+      Patrimonio: item.totalMoney,
+      Renda: item.totalIncome,
+      Gastos: item.totalExpenses,
+      Sobra: item.leftover,
+    };
+  });
+
+  return (
+    <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 space-y-6 pb-12">
+      {/* Abacaxi Pay Inspired Welcome & Range Selector */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card rounded-3xl p-6 border border-white/80">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-bold uppercase tracking-widest text-[#11310C]/60">
+              Visão Geral
+            </span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#C4C240]" />
+            <span className="text-xs font-bold text-[#11310C]">{selectedMonth}</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C] tracking-tight">
+            Controle <span className="font-serif italic font-normal text-3xl sm:text-4xl text-[#C4C240]">Financeiro</span> de Alta Precisão
+          </h1>
+        </div>
+
+        {/* Range Chips */}
+        <div className="flex items-center gap-1.5 p-1 bg-[#11310C]/5 rounded-2xl border border-[#11310C]/10 overflow-x-auto">
+          {[
+            { id: 'este-mes', label: 'Este Mês' },
+            { id: 'semana', label: 'Essa Semana' },
+            { id: '3-meses', label: 'Últimos 3 Mêses' },
+            { id: 'ano', label: 'Anual' },
+          ].map((chip) => (
+            <button
+              key={chip.id}
+              onClick={() => setTimeRange(chip.id as any)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                timeRange === chip.id
+                  ? 'bg-[#11310C] text-[#FAFBF6] shadow-xs'
+                  : 'text-[#11310C]/70 hover:text-[#11310C]'
+              }`}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Primary Financial Metric Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric 1: Ganho no Mês */}
+        <div className="glass-card rounded-3xl p-5 border border-white/90 relative overflow-hidden group hover:border-[#C4C240]/40 transition-all">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider">
+              Ganhos do Mês
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+              <ArrowUpRight className="w-4 h-4 text-emerald-700" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
+            {formatCurrency(currentMonthData.totalIncome)}
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#C4C240]/25 text-[#11310C]">
+              +12.8%
+            </span>
+            <span className="text-[11px] font-medium text-[#11310C]/60">vs mês anterior</span>
+          </div>
+        </div>
+
+        {/* Metric 2: Gasto no Mês (Chili Red) */}
+        <div className="glass-card rounded-3xl p-5 border border-white/90 relative overflow-hidden group hover:border-[#E13513]/30 transition-all">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider">
+              Gastos do Mês
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-[#FDECE9] text-[#E13513] flex items-center justify-center">
+              <ArrowDownRight className="w-4 h-4 text-[#E13513]" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-[#E13513]">
+            {formatCurrency(currentMonthData.totalExpenses)}
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#FDECE9] text-[#E13513]">
+              -4.2%
+            </span>
+            <span className="text-[11px] font-medium text-[#11310C]/60">controlado</span>
+          </div>
+        </div>
+
+        {/* Metric 3: Sobrou no Mês (Highlighted in Citron) */}
+        <div className="glass-card rounded-3xl p-5 border border-[#C4C240]/50 relative overflow-hidden bg-gradient-to-br from-white via-white to-[#F7F9E3]/50">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-[#11310C] uppercase tracking-wider flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-[#C4C240]" />
+              Sobrou do Mês
+            </span>
+            <div className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#11310C] text-[#C4C240]">
+              LÍQUIDO
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
+            {formatCurrency(currentMonthData.leftover)}
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-[11px] font-semibold text-[#11310C]/80">
+              Disponível para aportes ou reserva
+            </span>
+          </div>
+        </div>
+
+        {/* Metric 4: Total em Investimentos */}
+        <div className="glass-card rounded-3xl p-5 border border-white/90 relative overflow-hidden">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider">
+              Investimentos
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-[#11310C] text-[#C4C240] flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-[#C4C240]" />
+            </div>
+          </div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
+            {formatCurrency(currentMonthData.totalInvestments)}
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#11310C]/10 text-[#11310C]">
+              +1.15% a.m.
+            </span>
+            <span className="text-[11px] font-medium text-[#11310C]/60">Rendimento médio</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area: Chart + AI Insights Widget */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Interactive Wealth Chart (2 Cols) */}
+        <div className="lg:col-span-2 glass-card rounded-3xl p-6 border border-white/90 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#11310C]/10">
+            <div>
+              <h3 className="text-lg font-extrabold text-[#11310C]">
+                Evolução do <span className="font-serif italic font-normal text-xl text-[#C4C240]">Dinheiro Total</span> e Sobras
+              </h3>
+              <p className="text-xs text-[#11310C]/60">
+                Histórico sincronizado automaticamente das planilhas mensais
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-xs font-bold text-[#11310C]">
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-[#11310C]" /> Renda
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-[#C4C240]" /> Sobra
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-[#E13513]" /> Gastos
+              </span>
+            </div>
+          </div>
+
+          <div className="h-72 w-full pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorSobra" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#C4C240" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#C4C240" stopOpacity={0.0} />
+                  </linearGradient>
+                  <linearGradient id="colorRenda" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#11310C" stopOpacity={0.6} />
+                    <stop offset="95%" stopColor="#11310C" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#11310C" strokeOpacity={0.08} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#11310C', fontWeight: 600 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#11310C' }} tickFormatter={(v) => `R$${v/1000}k`} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#11310C',
+                    borderColor: '#C4C240',
+                    borderRadius: '16px',
+                    color: '#FAFBF6',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                  }}
+                  formatter={(val: any) => formatCurrency(Number(val))}
+                />
+                <Area type="monotone" dataKey="Renda" stroke="#11310C" strokeWidth={3} fillOpacity={1} fill="url(#colorRenda)" />
+                <Area type="monotone" dataKey="Sobra" stroke="#C4C240" strokeWidth={3} fillOpacity={1} fill="url(#colorSobra)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* AI Recommendations Card (1 Col) */}
+        <div className="glass-dark-card rounded-3xl p-6 text-[#FAFBF6] flex flex-col justify-between space-y-4 relative glaze-shine">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-[#C4C240] flex items-center justify-center text-[#11310C]">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-[#FAFBF6]">
+                    Recomendações <span className="font-serif italic font-normal text-base text-[#C4C240]">Gemini IA</span>
+                  </h3>
+                  <p className="text-[10px] text-[#FAFBF6]/60">Análise automática dos seus dados</p>
+                </div>
+              </div>
+
+              <button
+                onClick={fetchAiInsights}
+                disabled={isLoadingAi}
+                className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-[#C4C240] transition-all cursor-pointer"
+                title="Atualizar análise da IA"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingAi ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+
+            {/* List of Recommendations */}
+            <div className="space-y-3 mt-4">
+              {isLoadingAi ? (
+                <div className="py-8 text-center text-xs text-[#FAFBF6]/60 animate-pulse">
+                  Gerando recomendações personalizadas com Gemini AI...
+                </div>
+              ) : aiRecommendations.length > 0 ? (
+                aiRecommendations.map((rec, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md space-y-1 hover:bg-white/15 transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-extrabold text-[#C4C240]">
+                        {rec.title}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#C4C240]/20 text-[#C4C240]">
+                        {rec.impact}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#FAFBF6]/85 font-medium leading-snug">
+                      {rec.description}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <div className="p-3.5 rounded-2xl bg-white/10 text-xs font-medium text-[#FAFBF6]/70">
+                  Sua saúde financeira está excelente! Mantenha a sobra de R$ {formatCurrency(currentMonthData.leftover)} investida.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={() => onNavigateToTab('resumo')}
+            className="w-full py-2.5 rounded-2xl bg-[#C4C240] text-[#11310C] font-extrabold text-xs flex items-center justify-center gap-2 hover:bg-[#B5B333] transition-all cursor-pointer"
+          >
+            <span>Ver Balanço Geral Completo</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Secondary Grid: Recent Transactions + Cards Overview */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Transactions List (2 Cols) */}
+        <div className="lg:col-span-2 glass-card rounded-3xl p-6 border border-white/90 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-[#11310C]/10">
+            <div>
+              <h3 className="text-lg font-extrabold text-[#11310C]">
+                Últimas <span className="font-serif italic font-normal text-xl text-[#C4C240]">Movimentações</span>
+              </h3>
+              <p className="text-xs text-[#11310C]/60">Entradas e saídas sincronizadas</p>
+            </div>
+            <button
+              onClick={() => onNavigateToTab('extrato')}
+              className="text-xs font-bold text-[#11310C] hover:text-[#C4C240] flex items-center gap-1 transition-all cursor-pointer"
+            >
+              <span>Ver Extrato Completo</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="space-y-2.5">
+            {recentTransactions.slice(0, 5).map((tx) => (
+              <div
+                key={tx.id}
+                className="flex items-center justify-between p-3.5 rounded-2xl bg-white/80 hover:bg-white border border-[#11310C]/10 transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${
+                      tx.type === 'income'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : tx.type === 'expense'
+                        ? 'bg-[#FDECE9] text-[#E13513]'
+                        : 'bg-[#C4C240]/25 text-[#11310C]'
+                    }`}
+                  >
+                    {tx.type === 'income' ? (
+                      <ArrowUpRight className="w-4 h-4 text-emerald-700" />
+                    ) : tx.type === 'expense' ? (
+                      <ArrowDownRight className="w-4 h-4 text-[#E13513]" />
+                    ) : (
+                      <TrendingUp className="w-4 h-4 text-[#11310C]" />
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-[#11310C]">{tx.description}</h4>
+                    <p className="text-[10px] font-medium text-[#11310C]/60">
+                      {tx.category} • {formatDateBR(tx.date)} • {tx.paymentMethod}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div
+                    className={`font-extrabold text-xs ${
+                      tx.type === 'income'
+                        ? 'text-[#11310C]'
+                        : tx.type === 'expense'
+                        ? 'text-[#E13513]'
+                        : 'text-[#11310C]'
+                    }`}
+                  >
+                    {tx.type === 'income' ? '+' : '-'} {formatCurrency(tx.amount)}
+                  </div>
+                  <span className="text-[9px] font-semibold text-[#11310C]/50">
+                    {tx.sourceSheet}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Credit Cards Quick Invoice Widget (1 Col) */}
+        <div className="glass-card rounded-3xl p-6 border border-white/90 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-[#11310C]/10">
+            <div>
+              <h3 className="text-lg font-extrabold text-[#11310C]">
+                Faturas dos <span className="font-serif italic font-normal text-xl text-[#C4C240]">Cartões</span>
+              </h3>
+              <p className="text-xs text-[#11310C]/60">Abertura e fechamento</p>
+            </div>
+            <button
+              onClick={() => onNavigateToTab('cartoes')}
+              className="p-1.5 rounded-xl bg-[#11310C]/5 hover:bg-[#11310C]/10 text-[#11310C] transition-all cursor-pointer"
+            >
+              <CreditCard className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {creditCards.map((card) => (
+              <div
+                key={card.id}
+                className="p-3.5 rounded-2xl bg-white/90 border border-[#11310C]/10 space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-[#11310C]">{card.name}</span>
+                  <span
+                    className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                      card.status === 'fechada'
+                        ? 'bg-[#E13513]/15 text-[#E13513]'
+                        : 'bg-[#C4C240]/30 text-[#11310C]'
+                    }`}
+                  >
+                    {card.status === 'fechada' ? 'Fatura Fechada' : 'Fatura Aberta'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div>
+                    <p className="text-[10px] text-[#11310C]/60 font-semibold">Fatura Atual</p>
+                    <p className="text-sm font-extrabold text-[#11310C]">
+                      {formatCurrency(card.currentInvoice)}
+                    </p>
+                  </div>
+
+                  <div className="text-right text-[10px] text-[#11310C]/70">
+                    <p>Fechamento: Dia {card.closingDay}</p>
+                    <p>Vencimento: Dia {card.dueDay}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

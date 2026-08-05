@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+
+  --color-citron: #C4C240;
+  --color-citron-hover: #B5B333;
+  --color-citron-light: #EEF1AE;
+  --color-citron-subtle: #F7F9E3;
+
+  --color-darkgreen: #11310C;
+  --color-darkgreen-light: #1A4713;
+  --color-darkgreen-subtle: #E8EFE6;
+
+  --color-chilired: #E13513;
+  --color-chilired-hover: #C92A0A;
+  --color-chilired-subtle: #FDECE9;
+
+  --color-beige-bg: #F8F9F3;
+  --color-beige-surface: #FCFCFA;
+  --color-beige-card: #FFFFFF;
+}
+
+@layer utilities {
+  /* Liquid Glass iOS 26 Effects */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 
+      0 10px 30px -10px rgba(17, 49, 12, 0.05),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
+      inset 0 -1px 2px 0 rgba(196, 194, 64, 0.1);
+  }
+
+  .glass-pill {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 
+      0 4px 15px rgba(0, 0, 0, 0.03),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  .glass-dark-card {
+    background: rgba(17, 49, 12, 0.92);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(196, 194, 64, 0.25);
+    box-shadow: 
+      0 20px 40px -15px rgba(17, 49, 12, 0.25),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .liquid-button {
+    background: linear-gradient(135deg, #C4C240 0%, #B2B030 100%);
+    box-shadow: 
+      0 8px 20px -4px rgba(196, 194, 64, 0.4),
+      inset 0 1px 1px rgba(255, 255, 255, 0.5);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .liquid-button:hover {
+    transform: translateY(-1.5px);
+    box-shadow: 
+      0 12px 24px -4px rgba(196, 194, 64, 0.5),
+      inset 0 1px 1px rgba(255, 255, 255, 0.7);
+  }
+
+  .liquid-glow-citron {
+    background: radial-gradient(circle, rgba(196, 194, 64, 0.22) 0%, rgba(255, 255, 255, 0) 70%);
+  }
+
+  .liquid-glow-red {
+    background: radial-gradient(circle, rgba(225, 53, 19, 0.15) 0%, rgba(255, 255, 255, 0) 70%);
+  }
+
+  .glaze-shine {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glaze-shine::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      60deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.25) 50%,
+      transparent 70%
+    );
+    transform: rotate(25deg);
+    pointer-events: none;
+    animation: shine 8s infinite linear;
+  }
+}
+
+@keyframes shine {
+  0% { transform: translateX(-100%) rotate(25deg); }
+  20% { transform: translateX(100%) rotate(25deg); }
+  100% { transform: translateX(100%) rotate(25deg); }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.02);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(17, 49, 12, 0.15);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(17, 49, 12, 0.3);
+}
