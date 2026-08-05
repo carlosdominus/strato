@@ -182,7 +182,7 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
           </div>
 
           {/* Custom Legend */}
-          <div className="space-y-2 pt-2 border-t border-[#11310C]/10 max-h-48 overflow-y-auto">
+          <div className="space-y-2 pt-2 pr-3 border-t border-[#11310C]/10 max-h-48 overflow-y-auto">
             {pieData.slice(0, 10).map((item, idx) => (
               <div key={item.name} className="flex items-center justify-between text-xs font-bold">
                 <div className="flex items-center gap-2 truncate">
