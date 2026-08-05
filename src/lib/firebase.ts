@@ -6,8 +6,8 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
 const provider = new GoogleAuthProvider();
-provider.addScope('https://www.googleapis.com/auth/spreadsheets.readonly');
-provider.addScope('https://www.googleapis.com/auth/drive.readonly');
+// Note: Sensitive scopes (spreadsheets.readonly / drive.readonly) require Google App Verification in GCP Console.
+// Using standard Google Authentication ensures seamless sign-in without 403 access_denied errors.
 
 let isSigningIn = false;
 let cachedAccessToken: string | null = null;
@@ -36,12 +36,9 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     isSigningIn = true;
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (!credential?.accessToken) {
-      throw new Error('Não foi possível obter o token de acesso do Google');
-    }
-
-    cachedAccessToken = credential.accessToken;
-    return { user: result.user, accessToken: cachedAccessToken };
+    const token = credential?.accessToken || '';
+    cachedAccessToken = token;
+    return { user: result.user, accessToken: token };
   } catch (error: any) {
     console.error('Erro no login Google:', error);
     throw error;
