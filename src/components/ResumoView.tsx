@@ -67,7 +67,7 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
             <span className="text-xs font-bold text-[#11310C]">Planilha Principal Integrada</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            Total do <span className="font-serif italic font-normal text-3xl sm:text-4xl text-[#C4C240]">Dinheiro</span> do Mês
+            Total do <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#C4C240]">Dinheiro</span> do Mês
           </h1>
           <p className="text-xs text-[#11310C]/70 mt-1">
             Sua planilha de caixa central consolida o patrimônio total e variação líquida.
@@ -101,7 +101,7 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-sm text-[#11310C]">
-                {totalMoneySheet?.fileName || 'Dominus_Balanco_Patrimonial_2026.xlsx'}
+                {totalMoneySheet?.fileName || 'Strato_Balanco_Patrimonial_2026.xlsx'}
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
                 <CheckCircle2 className="w-3 h-3" /> Conectado
@@ -217,7 +217,7 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#11310C]/10">
           <div>
             <h3 className="text-lg font-extrabold text-[#11310C]">
-              Gráfico Mensal do <span className="font-serif italic font-normal text-xl text-[#C4C240]">Dinheiro Total</span> (Subidas & Descidas)
+              Gráfico Mensal do <span className="font-serif italic font-bold text-xl text-[#C4C240]">Dinheiro Total</span> (Subidas & Descidas)
             </h3>
             <p className="text-xs text-[#11310C]/60">
               Acompanhe a oscilação do seu patrimônio total e variação mensal gravada nas planilhas

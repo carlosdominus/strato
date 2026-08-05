@@ -68,7 +68,7 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Extrato_Dominus_${selectedMonth}.csv`);
+    link.setAttribute('download', `Extrato_Strato_${selectedMonth}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -87,7 +87,7 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
             <span className="text-xs font-bold text-[#11310C]">{selectedMonth}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            Extrato de <span className="font-serif italic font-normal text-3xl sm:text-4xl text-[#C4C240]">Transações</span>
+            Extrato de <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#C4C240]">Transações</span>
           </h1>
           <p className="text-xs text-[#11310C]/70 mt-1">
             Consolidado histórico de todas as movimentações registradas nas suas planilhas.

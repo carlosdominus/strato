@@ -73,7 +73,7 @@ export const ManualRegistrationModal: React.FC<ManualRegistrationModalProps> = (
             </div>
             <div>
               <h3 className="text-lg font-bold text-[#11310C] leading-tight">
-                Novo <span className="font-serif italic font-normal text-xl text-[#C4C240]">Lançamento</span> Manual
+                Novo <span className="font-serif italic font-bold text-xl text-[#C4C240]">Lançamento</span> Manual
               </h3>
               <p className="text-xs text-[#11310C]/60">
                 Sincronização imediata com a planilha de {selectedMonth}

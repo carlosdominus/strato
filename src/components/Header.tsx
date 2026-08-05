@@ -10,7 +10,7 @@ import {
   LogOut,
   Lock,
 } from 'lucide-react';
-import { User } from 'firebase/auth';
+import { TomatoIcon } from './TomatoIcon';
 
 interface HeaderProps {
   selectedMonth: string;
@@ -46,19 +46,19 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center justify-between md:justify-start gap-4">
           <div className="flex items-center gap-3">
             {/* Logo pill */}
-            <div className="w-10 h-10 rounded-2xl bg-[#11310C] flex items-center justify-center text-[#C4C240] shadow-md shadow-[#11310C]/20 border border-[#C4C240]/30 glaze-shine">
-              <Sparkles className="w-5 h-5 text-[#C4C240]" />
+            <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-md shadow-[#11310C]/10 border border-[#11310C]/15 glaze-shine">
+              <TomatoIcon className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-sans font-extrabold text-xl tracking-tight text-[#11310C]">
-                  DOMINUS
+                <span className="font-sans font-black text-2xl tracking-tight text-[#11310C]">
+                  Strato
                 </span>
-                <span className="font-serif italic text-2xl font-normal text-[#C4C240]">
-                  Financial
+                <span className="font-serif italic text-lg font-bold text-[#11310C]/60">
+                  finance
                 </span>
                 <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#C4C240]/20 text-[#11310C] border border-[#C4C240]/40">
-                  Planilhas OS 26
+                  OS 26
                 </span>
               </div>
               <p className="text-xs text-[#11310C]/70 flex items-center gap-1 font-medium">

@@ -90,7 +90,7 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
   {
     id: 'tx-101',
     date: '2026-08-04',
-    description: 'Recebimento de Pró-labore Dominus Tech',
+    description: 'Recebimento de Pró-labore Strato Tech',
     category: 'Salário & Renda',
     amount: 18500,
     type: 'income',

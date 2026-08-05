@@ -103,7 +103,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span className="text-xs font-bold text-[#11310C]">{selectedMonth}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C] tracking-tight">
-            Controle <span className="font-serif italic font-normal text-3xl sm:text-4xl text-[#C4C240]">Financeiro</span> de Alta Precisão
+            Controle <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#C4C240]">Financeiro</span> de Alta Precisão
           </h1>
         </div>
 
@@ -224,7 +224,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#11310C]/10">
             <div>
               <h3 className="text-lg font-extrabold text-[#11310C]">
-                Evolução do <span className="font-serif italic font-normal text-xl text-[#C4C240]">Dinheiro Total</span> e Sobras
+                Evolução do <span className="font-serif italic font-bold text-xl text-[#C4C240]">Dinheiro Total</span> e Sobras
               </h3>
               <p className="text-xs text-[#11310C]/60">
                 Histórico sincronizado automaticamente das planilhas mensais
@@ -288,7 +288,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm text-[#FAFBF6]">
-                    Recomendações <span className="font-serif italic font-normal text-base text-[#C4C240]">Gemini IA</span>
+                    Recomendações <span className="font-serif italic font-bold text-base text-[#C4C240]">Gemini IA</span>
                   </h3>
                   <p className="text-[10px] text-[#FAFBF6]/60">Análise automática dos seus dados</p>
                 </div>
@@ -354,7 +354,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex items-center justify-between pb-3 border-b border-[#11310C]/10">
             <div>
               <h3 className="text-lg font-extrabold text-[#11310C]">
-                Últimas <span className="font-serif italic font-normal text-xl text-[#C4C240]">Movimentações</span>
+                Últimas <span className="font-serif italic font-bold text-xl text-[#C4C240]">Movimentações</span>
               </h3>
               <p className="text-xs text-[#11310C]/60">Entradas e saídas sincronizadas</p>
             </div>
@@ -425,7 +425,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex items-center justify-between pb-3 border-b border-[#11310C]/10">
             <div>
               <h3 className="text-lg font-extrabold text-[#11310C]">
-                Faturas dos <span className="font-serif italic font-normal text-xl text-[#C4C240]">Cartões</span>
+                Faturas dos <span className="font-serif italic font-bold text-xl text-[#C4C240]">Cartões</span>
               </h3>
               <p className="text-xs text-[#11310C]/60">Abertura e fechamento</p>
             </div>

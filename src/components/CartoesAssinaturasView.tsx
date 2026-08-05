@@ -40,7 +40,7 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
             <span className="text-xs font-bold text-[#11310C]">Fechamento e Abertura</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            Faturas de <span className="font-serif italic font-normal text-3xl sm:text-4xl text-[#C4C240]">Cartões</span> & Assinaturas Fixas
+            Faturas de <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#C4C240]">Cartões</span> & Assinaturas Fixas
           </h1>
         </div>
 
@@ -95,7 +95,7 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
         <div className="flex items-center justify-between pb-3 border-b border-[#11310C]/10">
           <div>
             <h3 className="text-lg font-extrabold text-[#11310C]">
-              Ciclos de <span className="font-serif italic font-normal text-xl text-[#C4C240]">Abertura & Fechamento</span> dos Cartões
+              Ciclos de <span className="font-serif italic font-bold text-xl text-[#C4C240]">Abertura & Fechamento</span> dos Cartões
             </h3>
             <p className="text-xs text-[#11310C]/60">
               Conforme sua planilha de cartões (sem exposição de números de cartão)
@@ -175,7 +175,7 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
         <div className="flex items-center justify-between pb-3 border-b border-[#11310C]/10">
           <div>
             <h3 className="text-lg font-extrabold text-[#11310C]">
-              Planilha de <span className="font-serif italic font-normal text-xl text-[#C4C240]">Assinaturas</span> & Serviços Recorrentes
+              Planilha de <span className="font-serif italic font-bold text-xl text-[#C4C240]">Assinaturas</span> & Serviços Recorrentes
             </h3>
             <p className="text-xs text-[#11310C]/60">Sincronizado com Planilha_Assinaturas.csv</p>
           </div>

@@ -88,7 +88,7 @@ export const NavTabs: React.FC<NavTabsProps> = ({ activeTab, onSelectTab }) => {
               <span>
                 {tab.label}{' '}
                 {tab.italicWord && (
-                  <span className="font-serif italic font-normal text-sm ml-0.5 text-[#C4C240]">
+                  <span className="font-serif italic font-bold text-sm ml-0.5 text-[#C4C240]">
                     {tab.italicWord}
                   </span>
                 )}

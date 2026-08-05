@@ -68,7 +68,7 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
             <span className="text-xs font-bold text-[#11310C]">Rentabilidade & Dividendos</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            Meus <span className="font-serif italic font-normal text-3xl sm:text-4xl text-[#C4C240]">Investimentos</span> & Performance
+            Meus <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#C4C240]">Investimentos</span> & Performance
           </h1>
         </div>
 
@@ -144,7 +144,7 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
         <div className="glass-card rounded-3xl p-6 border border-white/90 space-y-4">
           <div>
             <h3 className="text-lg font-extrabold text-[#11310C]">
-              Alocação de <span className="font-serif italic font-normal text-xl text-[#C4C240]">Ativos</span>
+              Alocação de <span className="font-serif italic font-bold text-xl text-[#C4C240]">Ativos</span>
             </h3>
             <p className="text-xs text-[#11310C]/60">Distribuição percentual da sua carteira</p>
           </div>
@@ -203,7 +203,7 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#11310C]/10">
             <div>
               <h3 className="text-lg font-extrabold text-[#11310C]">
-                Ativos em <span className="font-serif italic font-normal text-xl text-[#C4C240]">Carteira</span>
+                Ativos em <span className="font-serif italic font-bold text-xl text-[#C4C240]">Carteira</span>
               </h3>
               <p className="text-xs text-[#11310C]/60">Sincronizado com Planilha_Investimentos.xlsx</p>
             </div>

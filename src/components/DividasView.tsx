@@ -33,7 +33,7 @@ export const DividasView: React.FC<DividasViewProps> = ({ debts, onOpenManualMod
             <span className="text-xs font-bold text-[#11310C]">Plano Estratégico</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            Controle de <span className="font-serif italic font-normal text-3xl sm:text-4xl text-[#E13513]">Dívidas</span> & Metas de Quitação
+            Controle de <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#E13513]">Dívidas</span> & Metas de Quitação
           </h1>
         </div>
 
@@ -90,7 +90,7 @@ export const DividasView: React.FC<DividasViewProps> = ({ debts, onOpenManualMod
         <div className="flex items-center justify-between pb-3 border-b border-[#11310C]/10">
           <div>
             <h3 className="text-lg font-extrabold text-[#11310C]">
-              Contratos & <span className="font-serif italic font-normal text-xl text-[#C4C240]">Financiamentos</span> Ativos
+              Contratos & <span className="font-serif italic font-bold text-xl text-[#C4C240]">Financiamentos</span> Ativos
             </h3>
             <p className="text-xs text-[#11310C]/60">Sincronizado com Planilha_Dividas.xlsx</p>
           </div>

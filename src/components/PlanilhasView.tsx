@@ -155,7 +155,7 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
             <span className="text-xs font-bold text-[#11310C]">Bancos de Dados = Suas Planilhas</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            Central de <span className="font-serif italic font-normal text-3xl sm:text-4xl text-[#C4C240]">Planilhas</span> & Conexões
+            Central de <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#C4C240]">Planilhas</span> & Conexões
           </h1>
           <p className="text-xs text-[#11310C]/70 mt-1">
             Toda a inteligência do seu dashboard é alimentada diretamente pelas suas planilhas conectadas.
@@ -222,7 +222,7 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
         <div className="glass-card rounded-3xl p-6 border border-white/90 space-y-4">
           <div>
             <h3 className="text-lg font-extrabold text-[#11310C]">
-              Subir <span className="font-serif italic font-normal text-xl text-[#C4C240]">Arquivos</span> de Planilha (CSV / XLSX)
+              Subir <span className="font-serif italic font-bold text-xl text-[#C4C240]">Arquivos</span> de Planilha (CSV / XLSX)
             </h3>
             <p className="text-xs text-[#11310C]/60">
               Envie suas planilhas de extratos, cartões, investimentos, dívidas ou assinaturas
@@ -310,7 +310,7 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
         <div className="glass-card rounded-3xl p-6 border border-white/90 space-y-4">
           <div>
             <h3 className="text-lg font-extrabold text-[#11310C]">
-              Vincular <span className="font-serif italic font-normal text-xl text-[#C4C240]">Google Sheets</span>
+              Vincular <span className="font-serif italic font-bold text-xl text-[#C4C240]">Google Sheets</span>
             </h3>
             <p className="text-xs text-[#11310C]/60">
               Cole o link da sua planilha na nuvem para sincronização automática
@@ -358,7 +358,7 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
         <div className="flex items-center justify-between pb-3 border-b border-[#11310C]/10">
           <div>
             <h3 className="text-lg font-extrabold text-[#11310C]">
-              Planilhas Conectadas <span className="font-serif italic font-normal text-xl text-[#C4C240]">no Dashboard</span>
+              Planilhas Conectadas <span className="font-serif italic font-bold text-xl text-[#C4C240]">no Dashboard</span>
             </h3>
             <p className="text-xs text-[#11310C]/60">Status atual de integração de dados</p>
           </div>
