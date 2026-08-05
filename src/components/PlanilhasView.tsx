@@ -33,7 +33,7 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
 
   // Email permission info requested by user
-  const AUTHORIZED_EMAIL_1 = 'carlos@dominus.site';
+  const AUTHORIZED_EMAIL_1 = 'gf.carlos023@gmail.com';
   const AUTHORIZED_EMAIL_2 = 'sheets-bot@applet-secure-sheets.iam.gserviceaccount.com';
 
   const handleFileUpload = (file: File) => {

@@ -65,6 +65,18 @@ async function startServer() {
           const response = await fetch(sheet.url, { headers: customHeaders });
           if (response.status === 200) {
             const csvText = await response.text();
+            const trimmed = csvText.trim();
+            const isHtmlRedirect = trimmed.startsWith('<') || trimmed.includes('<!DOCTYPE html>') || trimmed.includes('accounts.google.com') || trimmed.includes('Sign in');
+
+            if (isHtmlRedirect) {
+              fetchResults.push({
+                ...sheet,
+                status: 'pendente',
+                message: 'Planilha restrita no Google Drive da conta gf.carlos023@gmail.com. Clique em "Compartilhar" no Google Sheets e selecione "Qualquer pessoa com o link pode ver" (Leitor).',
+                httpCode: 401,
+              });
+              continue;
+            }
             
             // Simple CSV line parser
             const lines = csvText.split('\n').map(l => l.trim()).filter(Boolean);
@@ -72,14 +84,14 @@ async function startServer() {
             if (sheet.id === 'sheet-investimentos-dolar' && lines.length > 1) {
               // Parse stock investments from Google Sheets
               lines.slice(1).forEach((line, index) => {
-                // handle quoted strings with commas
-                const cols = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
+                // handle quoted strings or comma/semicolon separation
+                const cols = line.match(/(".*?"|[^",;\s]+)(?=\s*[,;]|\s*$)/g) || line.split(/[,;]/);
                 if (cols.length >= 6) {
-                  const ticker = cols[0]?.replace(/"/g, '') || '';
-                  const name = cols[1]?.replace(/"/g, '') || ticker;
-                  const classe = cols[2]?.replace(/"/g, '') || 'STOCK';
-                  const usdAppliedStr = cols[8]?.replace(/"/g, '').replace('$', '').replace('.', '').replace(',', '.') || '0';
-                  const usdCurrentStr = cols[9]?.replace(/"/g, '').replace('$', '').replace('.', '').replace(',', '.') || '0';
+                  const ticker = cols[0]?.replace(/["']/g, '').trim() || '';
+                  const name = cols[1]?.replace(/["']/g, '').trim() || ticker;
+                  const classe = cols[2]?.replace(/["']/g, '').trim() || 'STOCK';
+                  const usdAppliedStr = cols[8]?.replace(/["'$]/g, '').replace(/\./g, '').replace(',', '.').trim() || '0';
+                  const usdCurrentStr = cols[9]?.replace(/["'$]/g, '').replace(/\./g, '').replace(',', '.').trim() || '0';
                   const usdApplied = parseFloat(usdAppliedStr) || 0;
                   const usdCurrent = parseFloat(usdCurrentStr) || 0;
 
@@ -105,7 +117,7 @@ async function startServer() {
             fetchResults.push({
               ...sheet,
               status: 'conectado',
-              message: 'Conexão segura autorizada via OAuth Google',
+              message: 'Sincronizado com sucesso via Google Sheets',
               linesCount: lines.length - 1,
             });
           } else {

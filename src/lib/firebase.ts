@@ -10,7 +10,7 @@ const provider = new GoogleAuthProvider();
 // Using standard Google Authentication ensures seamless sign-in without 403 access_denied errors.
 
 let isSigningIn = false;
-let cachedAccessToken: string | null = null;
+let cachedAccessToken: string | null = typeof window !== 'undefined' ? localStorage.getItem('google_access_token') : null;
 
 export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
@@ -18,14 +18,14 @@ export const initAuth = (
 ) => {
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
-      if (cachedAccessToken) {
-        if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
-      } else if (!isSigningIn) {
-        // Try getting token or prompt sign in if missing
-        if (onAuthFailure) onAuthFailure();
-      }
+      const savedToken = localStorage.getItem('google_access_token') || cachedAccessToken || '';
+      cachedAccessToken = savedToken;
+      if (onAuthSuccess) onAuthSuccess(user, savedToken);
     } else {
       cachedAccessToken = null;
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('google_access_token');
+      }
       if (onAuthFailure) onAuthFailure();
     }
   });
@@ -38,6 +38,9 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     const credential = GoogleAuthProvider.credentialFromResult(result);
     const token = credential?.accessToken || '';
     cachedAccessToken = token;
+    if (token && typeof window !== 'undefined') {
+      localStorage.setItem('google_access_token', token);
+    }
     return { user: result.user, accessToken: token };
   } catch (error: any) {
     console.error('Erro no login Google:', error);
@@ -48,10 +51,13 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 };
 
 export const getAccessToken = (): string | null => {
-  return cachedAccessToken;
+  return cachedAccessToken || (typeof window !== 'undefined' ? localStorage.getItem('google_access_token') : null);
 };
 
 export const logout = async () => {
   await auth.signOut();
   cachedAccessToken = null;
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('google_access_token');
+  }
 };
