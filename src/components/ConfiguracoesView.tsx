@@ -144,6 +144,7 @@ export const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({
           spreadsheets={spreadsheets}
           onAddSpreadsheet={onAddSpreadsheet}
           onImportCsvTransactions={onImportCsvTransactions}
+          onRefreshSheets={onRefreshSheets}
         />
       </div>
     </div>

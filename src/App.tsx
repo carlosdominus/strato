@@ -36,13 +36,13 @@ export function App() {
   // App domain state
   const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
   const [monthsData, setMonthsData] = useState(MOCK_MONTHS_SUMMARY);
-  const [creditCards] = useState(MOCK_CREDIT_CARDS);
+  const [creditCards, setCreditCards] = useState(MOCK_CREDIT_CARDS);
   const [investments, setInvestments] = useState(MOCK_INVESTMENTS);
   const [debts] = useState(MOCK_DEBTS);
-  const [debtors] = useState<Debtor[]>(INITIAL_DEBTORS);
+  const [debtors, setDebtors] = useState<Debtor[]>(INITIAL_DEBTORS);
   const [goals, setGoals] = useState<FinancialGoal[]>(INITIAL_FINANCIAL_GOALS);
   const [bankAccounts] = useState(INITIAL_BANK_ACCOUNTS);
-  const [subscriptions] = useState(MOCK_SUBSCRIPTIONS);
+  const [subscriptions, setSubscriptions] = useState(MOCK_SUBSCRIPTIONS);
   const [spreadsheets, setSpreadsheets] = useState<SpreadsheetConnection[]>(MOCK_SPREADSHEETS);
 
   // Auth state
@@ -70,6 +70,7 @@ export function App() {
                   ...sheet,
                   status: found.status,
                   description: found.message || sheet.description,
+                  recordsCount: found.linesCount !== undefined ? found.linesCount : sheet.recordsCount,
                   lastSync: found.status === 'conectado' ? 'Sincronizado via Google API' : 'Privado (Faça login para conectar)',
                 };
               }
@@ -78,7 +79,9 @@ export function App() {
           );
         }
 
-        if (data.investmentsUSD && data.investmentsUSD.length > 0) {
+        if (data.investments && Array.isArray(data.investments) && data.investments.length > 0) {
+          setInvestments(data.investments);
+        } else if (data.investmentsUSD && Array.isArray(data.investmentsUSD) && data.investmentsUSD.length > 0) {
           setInvestments((prev) => {
             const nonUs = prev.filter((i) => i.category !== 'Internacional');
             return [...nonUs, ...data.investmentsUSD];
@@ -87,6 +90,38 @@ export function App() {
 
         if (data.transactions && Array.isArray(data.transactions) && data.transactions.length > 0) {
           setTransactions(data.transactions);
+        }
+
+        if (data.cards && Array.isArray(data.cards) && data.cards.length > 0) {
+          setCreditCards(data.cards);
+        }
+
+        if (data.subscriptions && Array.isArray(data.subscriptions) && data.subscriptions.length > 0) {
+          setSubscriptions(data.subscriptions);
+        }
+
+        if (data.debtors && Array.isArray(data.debtors) && data.debtors.length > 0) {
+          setDebtors(data.debtors);
+        }
+
+        if (data.totaisMatrix && data.totaisMatrix.months && data.totaisMatrix.accounts) {
+          const { months, accounts } = data.totaisMatrix;
+          setMonthsData((prev) => {
+            const next = { ...prev };
+            months.forEach((mName: string) => {
+              let sumForMonth = 0;
+              accounts.forEach((acc: any) => {
+                sumForMonth += acc.balances[mName] || 0;
+              });
+              if (next[mName]) {
+                next[mName] = {
+                  ...next[mName],
+                  totalMoney: sumForMonth > 0 ? sumForMonth : next[mName].totalMoney,
+                };
+              }
+            });
+            return next;
+          });
         }
 
         if (data.liveSummary) {

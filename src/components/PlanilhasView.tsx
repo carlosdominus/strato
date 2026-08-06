@@ -20,12 +20,14 @@ interface PlanilhasViewProps {
   spreadsheets: SpreadsheetConnection[];
   onAddSpreadsheet: (sheet: SpreadsheetConnection) => void;
   onImportCsvTransactions: (newTransactions: Transaction[]) => void;
+  onRefreshSheets?: () => void;
 }
 
 export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
   spreadsheets,
   onAddSpreadsheet,
   onImportCsvTransactions,
+  onRefreshSheets,
 }) => {
   const [googleSheetUrl, setGoogleSheetUrl] = useState('');
   const [selectedSheetType, setSelectedSheetType] = useState<SpreadsheetConnection['type']>('extrato');
@@ -107,13 +109,13 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
     setIsSyncingAPI(true);
     setSyncApiMessage('Sincronizando com as APIs do Google Sheets...');
     try {
-      const res = await fetch('/api/fetch-sheets');
-      const data = await res.json();
-      if (data.success) {
-        setSyncApiMessage('Sincronização concluída! As planilhas de Investimentos em Dólar e Preço Médio EUA foram lidas e atualizadas em tempo real.');
+      if (onRefreshSheets) {
+        await onRefreshSheets();
       } else {
-        setSyncApiMessage('Aviso ao sincronizar planilhas.');
+        await fetch('/api/fetch-sheets');
       }
+      setSyncApiMessage('Sincronização concluída! As planilhas do Google Sheets foram lidas e atualizadas no dashboard em tempo real.');
+      setTimeout(() => setSyncApiMessage(null), 4000);
     } catch (e: any) {
       setSyncApiMessage('Erro ao conectar com servidor.');
     } finally {
@@ -144,9 +146,9 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 space-y-10 pb-16">
+    <div className="w-full space-y-8 pb-12 overflow-hidden">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 glass-card rounded-3xl p-8 border border-[#11310C]/06">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 glass-card rounded-3xl p-6 border border-[#11310C]/10 overflow-hidden">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-[#11310C]/50">
@@ -163,7 +165,7 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-shrink-0">
           <button
             onClick={handleSyncAllSheetsAPI}
             disabled={isSyncingAPI}
@@ -178,6 +180,13 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
           </div>
         </div>
       </div>
+
+      {syncApiMessage && (
+        <div className="p-4 rounded-2xl bg-emerald-100/90 text-emerald-950 font-extrabold text-xs flex items-center gap-2 border border-emerald-300">
+          <CheckCircle2 className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+          <span>{syncApiMessage}</span>
+        </div>
+      )}
 
       {/* CRITICAL USER QUESTION ANSWER CARD: Qual e-mail liberar no Google Sheets */}
       <div className="glass-dark-card rounded-3xl p-6 text-[#FAFBF6] border border-[#C4C240]/40 space-y-4 relative overflow-hidden glaze-shine">
@@ -398,7 +407,7 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
       </div>
 
       {/* Connected Spreadsheets List */}
-      <div className="glass-card rounded-3xl p-6 border border-white/90 space-y-4">
+      <div className="glass-card rounded-3xl p-6 border border-white/90 space-y-4 overflow-hidden">
         <div className="flex items-center justify-between pb-3 border-b border-[#11310C]/10">
           <div>
             <h3 className="text-lg font-extrabold text-[#11310C]">
@@ -415,33 +424,37 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
           {spreadsheets.map((sheet) => (
             <div
               key={sheet.id}
-              className="p-4 rounded-2xl bg-white/90 border border-[#11310C]/10 space-y-3 hover:border-[#C4C240] transition-all"
+              className={`p-4 rounded-2xl bg-white/90 border space-y-3 transition-all overflow-hidden ${
+                sheet.id === 'sheet-assinaturas'
+                  ? 'border-[#C4C240] ring-2 ring-[#C4C240]/40 shadow-md'
+                  : 'border-[#11310C]/10 hover:border-[#C4C240]'
+              }`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#11310C] text-[#C4C240] flex items-center justify-center font-bold">
+              <div className="flex items-start justify-between gap-2 overflow-hidden">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[#11310C] text-[#C4C240] flex items-center justify-center font-bold flex-shrink-0">
                     <FileSpreadsheet className="w-5 h-5" />
                   </div>
-                  <div>
-                    <h4 className="font-extrabold text-xs text-[#11310C]">{sheet.title}</h4>
-                    <span className="text-[10px] font-semibold text-[#11310C]/60">
+                  <div className="min-w-0">
+                    <h4 className="font-extrabold text-xs text-[#11310C] truncate">{sheet.title}</h4>
+                    <span className="text-[10px] font-semibold text-[#11310C]/60 truncate block">
                       {sheet.fileName || 'Google Sheet'}
                     </span>
                   </div>
                 </div>
 
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-800">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-800 flex-shrink-0">
                   <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Sincronizado
                 </span>
               </div>
 
-              <p className="text-[11px] text-[#11310C]/70 font-medium leading-snug">
+              <p className="text-[11px] text-[#11310C]/70 font-medium leading-snug line-clamp-2">
                 {sheet.description}
               </p>
 
-              <div className="flex items-center justify-between pt-2 border-t border-[#11310C]/10 text-[10px] font-bold text-[#11310C]/60">
-                <span>Sincronizado: {sheet.lastSync}</span>
-                <span>{sheet.recordsCount} registros</span>
+              <div className="flex items-center justify-between pt-2 border-t border-[#11310C]/10 text-[10px] font-bold text-[#11310C]/60 min-w-0">
+                <span className="truncate pr-1">Sincronizado: {sheet.lastSync}</span>
+                <span className="flex-shrink-0">{sheet.recordsCount} registros</span>
               </div>
             </div>
           ))}
