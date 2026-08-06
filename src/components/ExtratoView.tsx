@@ -293,32 +293,32 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
           <table className="w-full text-left text-xs text-[#11310C]">
             <thead>
               <tr className="border-b border-[#11310C]/10 text-[10px] font-bold uppercase tracking-wider text-[#11310C]/60">
-                <th className="pb-3">Data (Col A)</th>
-                <th className="pb-3">Descrição (Col C)</th>
-                <th className="pb-3">Conta (Col D)</th>
-                <th className="pb-3">Tipo / Cartão (Col E)</th>
-                <th className="pb-3">Categoria</th>
-                <th className="pb-3 text-right">Valor (Col B)</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Data</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Descrição</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Conta</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Tipo / Cartão</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Categoria</th>
+                <th className="pb-3 px-2 whitespace-nowrap text-right">Valor</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#11310C]/5 font-semibold">
               {sortedFilteredTransactions.length > 0 ? (
                 sortedFilteredTransactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-white/80 transition-all">
-                    <td className="py-3.5 text-[#11310C]/80 font-mono text-[11px]">
+                    <td className="py-3.5 px-2 text-[#11310C]/80 font-mono text-[11px] whitespace-nowrap">
                       <div>{formatDateBR(tx.date)}</div>
                       {tx.isCreditCard && tx.invoiceDueDateStr && (
                         <div className="mt-0.5">
-                          <span className="inline-block text-[9px] font-extrabold text-[#11310C] bg-[#C4C240]/30 px-1.5 py-0.5 rounded-md border border-[#C4C240]/60">
+                          <span className="inline-block whitespace-nowrap text-[9px] font-extrabold text-[#11310C] bg-[#C4C240]/30 px-1.5 py-0.5 rounded-md border border-[#C4C240]/60">
                             Fatura Venc.: {tx.invoiceDueDateStr} ({tx.effectiveMonthLabel})
                           </span>
                         </div>
                       )}
                     </td>
-                    <td className="py-3.5">
+                    <td className="py-3.5 px-2">
                       <div className="flex items-center gap-2">
                         <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
                             tx.type === 'income'
                               ? 'bg-emerald-100 text-emerald-800'
                               : tx.type === 'expense'
@@ -337,19 +337,23 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
                         <span className="font-extrabold text-[#11310C]">{tx.description}</span>
                       </div>
                     </td>
-                    <td className="py-3.5">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#11310C]/10 text-[#11310C]">
+                    <td className="py-3.5 px-2 whitespace-nowrap">
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-[#11310C]/10 text-[#11310C] whitespace-nowrap inline-block">
                         {tx.account || 'Geral'}
                       </span>
                     </td>
-                    <td className="py-3.5 text-[#11310C]/90 font-bold">{tx.paymentMethod || 'PIX'}</td>
-                    <td className="py-3.5">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#11310C]/60 bg-white px-2 py-0.5 rounded-md border border-[#11310C]/10">
+                    <td className="py-3.5 px-2 whitespace-nowrap">
+                      <span className="px-2 py-1 rounded-lg text-[10px] font-extrabold bg-[#C4C240]/20 text-[#11310C] border border-[#C4C240]/40 whitespace-nowrap inline-block">
+                        {tx.paymentMethod || 'PIX'}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-2 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#11310C]/60 bg-white px-2 py-0.5 rounded-md border border-[#11310C]/10 whitespace-nowrap">
                         {tx.category}
                       </span>
                     </td>
                     <td
-                      className={`py-3.5 text-right font-extrabold text-sm ${
+                      className={`py-3.5 px-2 text-right font-extrabold text-sm whitespace-nowrap ${
                         tx.type === 'income'
                           ? 'text-[#11310C]'
                           : tx.type === 'expense'

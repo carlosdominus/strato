@@ -234,9 +234,45 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
 
   for (const sheet of SHEETS_CONFIG) {
     try {
-      const response = await fetch(sheet.url, { headers: customHeaders });
-      if (response.status === 200) {
-        const csvText = await response.text();
+      let csvText = '';
+      let fetchSuccess = false;
+
+      // Primary fetch try
+      try {
+        const response = await fetch(sheet.url, { headers: customHeaders });
+        if (response.status === 200) {
+          csvText = await response.text();
+          fetchSuccess = true;
+        }
+      } catch (err) {
+        console.warn(`Direct fetch failed for ${sheet.id}, trying gviz/cors proxies`, err);
+      }
+
+      // Secondary fallback if primary direct fetch failed or CORS blocked
+      if (!fetchSuccess) {
+        const gvizUrl = sheet.url.replace('/export?format=csv', '/gviz/tq?tqx=out:csv');
+        try {
+          const resp = await fetch(gvizUrl, { headers: customHeaders });
+          if (resp.ok) {
+            csvText = await resp.text();
+            fetchSuccess = true;
+          }
+        } catch {
+          // Tertiary fallback via public CORS proxy
+          try {
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(sheet.url)}`;
+            const resp = await fetch(proxyUrl);
+            if (resp.ok) {
+              csvText = await resp.text();
+              fetchSuccess = true;
+            }
+          } catch {
+            // Unsuccessful
+          }
+        }
+      }
+
+      if (fetchSuccess && csvText) {
         const trimmed = csvText.trim();
         const isHtmlRedirect =
           trimmed.startsWith('<') ||
@@ -491,13 +527,17 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
             parsedInvestments.push({
               id: `inv-sheet-${index}`,
               ticker,
+              companyName: ticker,
+              name: ticker,
+              assetClass: 'ETF / Ação',
               sharesCount,
               averagePrice: avgPriceApplied,
               currentPrice,
               yieldPercent,
+              usdChange: usdVariation,
+              percentChange: yieldPercent,
               usdApplied,
               usdCurrent,
-              usdVariation,
               category,
               amountInvested: Math.round(usdApplied * netUsdRate),
               currentValue: Math.round(usdCurrent * netUsdRate),
@@ -518,8 +558,8 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
         fetchResults.push({
           ...sheet,
           status: 'erro',
-          message: `Erro HTTP ${response.status}`,
-          httpCode: response.status,
+          message: 'Falha ao baixar dados da planilha. Verifique permissões.',
+          httpCode: 400,
         });
       }
     } catch (sheetErr: any) {

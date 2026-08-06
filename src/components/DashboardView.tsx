@@ -162,6 +162,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // Sort transactions strictly descending by date (most recent first)
   const sortedTransactions = [...recentTransactions].sort((a, b) => parseDateMs(b.date) - parseDateMs(a.date));
 
+  // Group installment transactions so multi-installment purchases (e.g. Galaxy Tab 1/12 .. 12/12) appear as 1 grouped item with the first installment date
+  const groupedTransactions = React.useMemo(() => {
+    const map = new Map<string, Transaction & { minDateMs: number }>();
+    const singles: Transaction[] = [];
+
+    for (const tx of sortedTransactions) {
+      const desc = (tx.description || '').trim();
+      const match = desc.match(/^(.*?)\s*\(?(\d+)\/(\d+)\)?$/i);
+      if (match) {
+        const baseTitle = match[1].trim();
+        const totalInst = parseInt(match[3], 10);
+        const key = `${baseTitle.toLowerCase()}-${tx.type}-${tx.account || ''}`;
+        const txMs = parseDateMs(tx.date);
+
+        if (!map.has(key)) {
+          map.set(key, {
+            ...tx,
+            id: `grouped-${key}`,
+            description: `${baseTitle} (${totalInst}x de R$ ${tx.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`,
+            minDateMs: txMs,
+          });
+        } else {
+          const existing = map.get(key)!;
+          if (txMs < existing.minDateMs) {
+            existing.minDateMs = txMs;
+            existing.date = tx.date; // Use date of first installment!
+          }
+        }
+      } else {
+        singles.push(tx);
+      }
+    }
+
+    const merged = [...singles, ...Array.from(map.values()).map(({ minDateMs, ...rest }) => rest)];
+    return merged.sort((a, b) => parseDateMs(b.date) - parseDateMs(a.date));
+  }, [sortedTransactions]);
+
   // Dynamic values calculated based on timeRange filter
   let displayIncome = currentMonthData.totalIncome;
   let displayExpenses = currentMonthData.totalExpenses;
@@ -493,7 +530,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="space-y-2.5">
-            {sortedTransactions.slice(0, 5).map((tx) => (
+            {groupedTransactions.slice(0, 5).map((tx) => (
               <div
                 key={tx.id}
                 className="flex items-center justify-between p-3.5 rounded-2xl bg-white/80 hover:bg-white border border-[#11310C]/10 transition-all"

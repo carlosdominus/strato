@@ -137,7 +137,27 @@ export const INITIAL_CARDS: CreditCardSheet[] = [
   },
 ];
 
-export const INITIAL_INVESTMENTS: Investment[] = [];
+export const INITIAL_INVESTMENTS: Investment[] = [
+  {
+    id: 'inv-init-1',
+    ticker: 'VT',
+    companyName: 'Vanguard Total World Stock ETF',
+    name: 'Vanguard Total World Stock ETF (VT)',
+    assetClass: 'ETF Internacional',
+    sharesCount: 15,
+    averagePrice: 102.50,
+    currentPrice: 111.085,
+    yieldPercent: 8.37,
+    usdChange: 128.78,
+    percentChange: 8.37,
+    usdApplied: 1537.50,
+    usdCurrent: 1666.28,
+    category: 'Internacional',
+    amountInvested: Math.round(1537.50 * 5.14),
+    currentValue: Math.round(1666.28 * 5.14),
+    monthlyDividend: 3.20,
+  },
+];
 
 export const INITIAL_DEBTS: Debt[] = [];
 
