@@ -37,6 +37,8 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
   const paymentMethods = Array.from(new Set(transactions.map((t) => t.paymentMethod || 'PIX'))).filter(Boolean);
   const daysInMonth = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
 
+  const [filterMode, setFilterMode] = useState<'fatura' | 'compra'>('fatura');
+
   const filteredTransactions = transactions.filter((tx) => {
     const matchesType = filterType === 'todos' || tx.type === filterType;
     const matchesCategory = filterCategory === 'todas' || tx.category === filterCategory;
@@ -44,8 +46,9 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
     const matchesMethod = filterMethod === 'todos' || (tx.paymentMethod || '') === filterMethod;
     
     let matchesDay = true;
-    if (filterDay !== 'todos' && tx.date) {
-      const dayPart = tx.date.split('-')[2] || tx.date.split('/')[0];
+    const effectiveOrPurchaseDate = filterMode === 'fatura' && tx.effectiveExpenseDate ? tx.effectiveExpenseDate : tx.date;
+    if (filterDay !== 'todos' && effectiveOrPurchaseDate) {
+      const dayPart = effectiveOrPurchaseDate.split('-')[2] || effectiveOrPurchaseDate.split('/')[0];
       matchesDay = parseInt(dayPart, 10) === parseInt(filterDay, 10);
     }
 
@@ -192,6 +195,32 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Mode Selector: Fatura vs Compra */}
+          <div className="flex items-center gap-1 p-1 bg-[#C4C240]/20 rounded-2xl border border-[#C4C240]/40">
+            <button
+              onClick={() => setFilterMode('fatura')}
+              className={`px-3 py-1 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                filterMode === 'fatura'
+                  ? 'bg-[#11310C] text-[#FAFBF6] shadow-sm'
+                  : 'text-[#11310C]/80 hover:text-[#11310C]'
+              }`}
+              title="Considera o gasto no mês do Vencimento da Fatura do Cartão"
+            >
+              Mês da Fatura Paga
+            </button>
+            <button
+              onClick={() => setFilterMode('compra')}
+              className={`px-3 py-1 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                filterMode === 'compra'
+                  ? 'bg-[#11310C] text-[#FAFBF6] shadow-sm'
+                  : 'text-[#11310C]/80 hover:text-[#11310C]'
+              }`}
+              title="Considera o gasto no mês da compra no carrinho"
+            >
+              Mês da Compra
+            </button>
+          </div>
+
           {/* Type Filter Buttons */}
           <div className="flex items-center gap-1 p-1 bg-[#11310C]/5 rounded-2xl border border-[#11310C]/10">
             {[
@@ -276,8 +305,15 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
               {sortedFilteredTransactions.length > 0 ? (
                 sortedFilteredTransactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-white/80 transition-all">
-                    <td className="py-3.5 text-[#11310C]/70 font-mono text-[11px]">
-                      {formatDateBR(tx.date)}
+                    <td className="py-3.5 text-[#11310C]/80 font-mono text-[11px]">
+                      <div>{formatDateBR(tx.date)}</div>
+                      {tx.isCreditCard && tx.invoiceDueDateStr && (
+                        <div className="mt-0.5">
+                          <span className="inline-block text-[9px] font-extrabold text-[#11310C] bg-[#C4C240]/30 px-1.5 py-0.5 rounded-md border border-[#C4C240]/60">
+                            Fatura Venc.: {tx.invoiceDueDateStr} ({tx.effectiveMonthLabel})
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="py-3.5">
                       <div className="flex items-center gap-2">

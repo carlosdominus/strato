@@ -116,21 +116,57 @@ async function startServer() {
       let liveTotalIncome = 0;
       let liveTotalExpenses = 0;
 
-      // Fetch real-time USD/BRL rate from AwesomeAPI
-      let usdRateCommercial = 5.50;
+      // Fetch real-time USD/BRL rate from Google Sheets 'Cotações atuais'!K1 or fallback
+      let usdRateCommercial = 5.14;
       try {
-        const rateResp = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL', { signal: AbortSignal.timeout(3000) });
-        if (rateResp.ok) {
-          const rateData = await rateResp.json();
-          if (rateData && rateData.USDBRL && rateData.USDBRL.bid) {
-            const parsedRate = parseFloat(rateData.USDBRL.bid);
-            if (parsedRate > 3 && parsedRate < 10) {
-              usdRateCommercial = parsedRate;
+        const sheetQuoteUrls = [
+          'https://docs.google.com/spreadsheets/d/1fv-MsaKURTBGIB8a3UWfLNKa5Yx6AfHXWTTYPZ1iB3c/gviz/tq?tqx=out:csv&sheet=Cota%C3%A7%C3%B5es%20atuais',
+          'https://docs.google.com/spreadsheets/d/1fv-MsaKURTBGIB8a3UWfLNKa5Yx6AfHXWTTYPZ1iB3c/export?format=csv&sheet=Cota%C3%A7%C3%B5es%20atuais'
+        ];
+
+        for (const url of sheetQuoteUrls) {
+          const rateResp = await fetch(url, { headers: customHeaders, signal: AbortSignal.timeout(3000) });
+          if (rateResp.ok) {
+            const csvText = await rateResp.text();
+            const rows = parseCsvToRows(csvText);
+            if (rows.length > 0 && rows[0] && rows[0].length >= 11) {
+              const val = parseCleanNumber(rows[0][10]); // Cell K1 is index 10
+              if (val > 3 && val < 10) {
+                usdRateCommercial = val;
+                break;
+              }
+            }
+            for (const row of rows) {
+              for (const cell of row) {
+                const parsed = parseCleanNumber(cell);
+                if (parsed >= 4.5 && parsed <= 7.0) {
+                  usdRateCommercial = parsed;
+                  break;
+                }
+              }
+              if (usdRateCommercial !== 5.14) break;
             }
           }
         }
       } catch (e) {
-        console.warn('Could not fetch live USD rate, using default rate');
+        console.warn('Could not fetch sheet quote from Cotações atuais, trying AwesomeAPI fallback');
+      }
+
+      if (usdRateCommercial === 5.14) {
+        try {
+          const rateResp = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL', { signal: AbortSignal.timeout(3000) });
+          if (rateResp.ok) {
+            const rateData = await rateResp.json();
+            if (rateData && rateData.USDBRL && rateData.USDBRL.bid) {
+              const parsedRate = parseFloat(rateData.USDBRL.bid);
+              if (parsedRate > 3 && parsedRate < 10) {
+                usdRateCommercial = parsedRate;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Could not fetch live USD rate, using default 5.14 rate');
+        }
       }
 
       const repatriationFeePercent = 1.8;

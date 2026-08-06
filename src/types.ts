@@ -12,6 +12,12 @@ export interface Transaction {
   sourceSheet: string;
   status: 'concluido' | 'pendente';
   notes?: string;
+  purchaseDate?: string; // Data da compra no carrinho (ex: 03/07/2026)
+  effectiveExpenseDate?: string; // Data real de pagamento da fatura (ex: 08/08/2026)
+  effectiveMonthLabel?: string; // Mês de competência da fatura (ex: "Agosto 2026")
+  isCreditCard?: boolean;
+  cardName?: string;
+  invoiceDueDateStr?: string; // Data formatada do vencimento (ex: "08/08/2026")
 }
 
 export interface CreditCardSheet {

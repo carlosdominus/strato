@@ -47,13 +47,18 @@ const CustomPieTooltip = ({ active, payload, totalValue }: any) => {
 
 export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
   investments,
-  usdRate = 5.50,
+  usdRate = 5.14,
   netUsdRate,
   onOpenManualModal,
 }) => {
-  const usdExchangeRateCommercial = usdRate || 5.50; // Dynamic USD commercial rate
+  const [overrideUsdRate, setOverrideUsdRate] = useState<number | null>(null);
+  const [sheetCellRef, setSheetCellRef] = useState<string>('Investimentos!K2');
+  const [isEditingRate, setIsEditingRate] = useState<boolean>(false);
+  const [tempRateInput, setTempRateInput] = useState<string>('5.14');
+
+  const usdExchangeRateCommercial = overrideUsdRate !== null ? overrideUsdRate : (usdRate || 5.14); // Dynamic USD commercial rate (default 5.14)
   const avenueRepatriationFeePercent = 1.8; // ~1.4% spread + 0.38% IOF
-  const netUsdRateAvenue = netUsdRate || (usdExchangeRateCommercial * (1 - avenueRepatriationFeePercent / 100)); // Dynamic Net BRL/USD rate
+  const netUsdRateAvenue = netUsdRate && overrideUsdRate === null ? netUsdRate : (usdExchangeRateCommercial * (1 - avenueRepatriationFeePercent / 100)); // Dynamic Net BRL/USD rate
 
   // Safe property extraction helper and filter zero assets as requested by user
   const safeInvestments = (investments || [])
@@ -111,6 +116,15 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
     value: inv.currentValue || 1,
   }));
 
+  const handleSaveRate = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = parseFloat(tempRateInput.replace(',', '.'));
+    if (!isNaN(parsed) && parsed > 0) {
+      setOverrideUsdRate(parsed);
+    }
+    setIsEditingRate(false);
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 space-y-6 pb-12">
       {/* Top Banner */}
@@ -121,79 +135,167 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
               Carteira de Ativos
             </span>
             <span className="w-1.5 h-1.5 rounded-full bg-[#C4C240]" />
-            <span className="text-xs font-bold text-[#11310C]">Rentabilidade & Dividendos</span>
+            <span className="text-xs font-bold text-[#11310C]">
+              Câmbio Dólar Comercial: R$ {usdExchangeRateCommercial.toFixed(2)} / USD
+            </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            Meus <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#C4C240]">Investimentos</span> & Performance
+            Meus <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#C4C240]">Investimentos</span> & Câmbio
           </h1>
         </div>
 
-        <button
-          onClick={onOpenManualModal}
-          className="liquid-button flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold text-[#11310C] cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Novo Aporte</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setTempRateInput(usdExchangeRateCommercial.toString());
+              setIsEditingRate(true);
+            }}
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs font-bold bg-[#11310C]/5 text-[#11310C] hover:bg-[#11310C]/10 border border-[#11310C]/10 cursor-pointer transition-all"
+          >
+            <Globe className="w-4 h-4 text-[#C4C240]" />
+            <span>Ajustar Cotação (5.14)</span>
+          </button>
+
+          <button
+            onClick={onOpenManualModal}
+            className="liquid-button flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold text-[#11310C] cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Novo Aporte</span>
+          </button>
+        </div>
       </div>
+
+      {/* Câmbio Custom Modal */}
+      {isEditingRate && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 border border-[#11310C]/20 max-w-md w-full space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-lg text-[#11310C]">
+                Configurar Cotação do Dólar
+              </h3>
+              <button
+                onClick={() => setIsEditingRate(false)}
+                className="text-gray-400 hover:text-gray-600 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-[#11310C]/70">
+              Defina o valor da taxa de câmbio do Dólar em reais (BRL). Hoje a cotação oficial é <strong>R$ 5,14</strong>.
+            </p>
+
+            <form onSubmit={handleSaveRate} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#11310C]/80 mb-1">
+                  Taxa do Dólar (R$ / USD):
+                </label>
+                <input
+                  type="text"
+                  value={tempRateInput}
+                  onChange={(e) => setTempRateInput(e.target.value)}
+                  placeholder="5.14"
+                  className="w-full px-4 py-2.5 rounded-2xl border border-[#11310C]/20 text-sm font-extrabold text-[#11310C] focus:outline-none focus:ring-2 focus:ring-[#C4C240]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#11310C]/80 mb-1">
+                  Célula de Origem na Planilha Google Sheets:
+                </label>
+                <input
+                  type="text"
+                  value={sheetCellRef}
+                  onChange={(e) => setSheetCellRef(e.target.value)}
+                  placeholder="Investimentos!K2"
+                  className="w-full px-4 py-2.5 rounded-2xl border border-[#11310C]/20 text-xs font-medium text-[#11310C] focus:outline-none focus:ring-2 focus:ring-[#C4C240]"
+                />
+                <p className="text-[10px] text-[#11310C]/50 mt-1">
+                  Se você tiver uma célula com a fórmula `=GOOGLEFINANCE("CURRENCY:USDBRL")`, informe a referência aqui.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOverrideUsdRate(5.14);
+                    setIsEditingRate(false);
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-700 hover:bg-gray-50"
+                >
+                  Restaurar 5,14
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#11310C] text-white hover:bg-[#11310C]/90"
+                >
+                  Salvar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Top Investment Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Valor Atual */}
-        <div className="glass-card rounded-3xl p-5 border border-white/90">
-          <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider block mb-2">
-            Valor Total em R$ (Líquido pós-IOF)
-          </span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            {formatCurrency(totalCurrentValue)}
-          </div>
-          <p className="text-[11px] font-medium text-[#11310C]/60 mt-2">
-            Valor Aplicado: {formatCurrency(totalInvested)} • Descontado IOF (1,8%)
-          </p>
-        </div>
-
-        {/* Card 2: Lucro / Lucratividade */}
-        <div className="glass-card rounded-3xl p-5 border border-white/90">
-          <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider block mb-2">
-            Lucro Bruto Acumulado
-          </span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            {formatCurrency(totalProfit)}
-          </div>
-          <div className="mt-2">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#C4C240]/25 text-[#11310C]">
-              {formatPercent(overallYield)}
-            </span>
-          </div>
-        </div>
-
-        {/* Card 3: Projeção de Dividendos Mês */}
-        <div className="glass-card rounded-3xl p-5 border border-white/90">
-          <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider block mb-2">
-            Renda Passiva Mensal
-          </span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            {formatCurrency(totalMonthlyDividends)}
-          </div>
-          <p className="text-[11px] font-medium text-[#11310C]/60 mt-2">
-            Dividendos de FIIs e Stocks EUA
-          </p>
-        </div>
-
-        {/* Card 4: Posição Internacional em Dólar */}
-        <div className="glass-card rounded-3xl p-5 border border-white/90 bg-gradient-to-br from-white via-white to-emerald-50/40">
+        {/* Card 1: Posição Intacta em Dólares (USD $) */}
+        <div className="glass-card rounded-3xl p-5 border border-white/90 bg-gradient-to-br from-white via-white to-emerald-50/50">
           <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider mb-2 flex items-center justify-between">
-            <span>Posição em Dólares</span>
-            <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">USD $</span>
+            <span>Posição Bruta em USD ($)</span>
+            <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">Dólar Puro</span>
           </span>
           <div className="text-2xl sm:text-3xl font-extrabold text-emerald-900">
             $ {totalUsdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] font-medium text-[#11310C]/80 mt-2 space-y-0.5">
-            <p><strong>Câmbio Comercial:</strong> R$ {usdExchangeRateCommercial.toFixed(2)} (Bruto: {formatCurrency(totalBrlCommercial)})</p>
-            <p className="text-emerald-800 font-bold">
-              <strong>Líquido Avenue (-1,8% IOF/Spread):</strong> {formatCurrency(totalBrlAvenueNet)}
-            </p>
+          <p className="text-[11px] font-medium text-[#11310C]/70 mt-2">
+            Valor intacto mantido em carteira internacional (USD)
+          </p>
+        </div>
+
+        {/* Card 2: Valor Bruto Convertido em R$ sem IOF */}
+        <div className="glass-card rounded-3xl p-5 border border-white/90">
+          <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider block mb-2">
+            Valor Bruto em R$ (@ {usdExchangeRateCommercial.toFixed(2)})
+          </span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
+            {formatCurrency(totalBrlCommercial)}
+          </div>
+          <p className="text-[11px] font-medium text-[#11310C]/60 mt-2">
+            Conversão direta sem descontos (100% Câmbio Comercial)
+          </p>
+        </div>
+
+        {/* Card 3: Valor Líquido pós-IOF/Spread em R$ */}
+        <div className="glass-card rounded-3xl p-5 border border-white/90 bg-gradient-to-br from-white via-white to-amber-50/40">
+          <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider block mb-2">
+            Líquido pós-IOF/Spread (R$)
+          </span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
+            {formatCurrency(totalBrlAvenueNet)}
+          </div>
+          <p className="text-[11px] font-medium text-amber-900 mt-2">
+            Descontando repatriação Avenue (1,8% IOF + Spread)
+          </p>
+        </div>
+
+        {/* Card 4: Lucro & Rendimento */}
+        <div className="glass-card rounded-3xl p-5 border border-white/90">
+          <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider block mb-2">
+            Lucro Acumulado
+          </span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
+            {formatCurrency(totalProfit)}
+          </div>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#C4C240]/25 text-[#11310C]">
+              {formatPercent(overallYield)}
+            </span>
+            <span className="text-[10px] text-[#11310C]/60 font-medium">
+              Renda Passiva: {formatCurrency(totalMonthlyDividends)}/mês
+            </span>
           </div>
         </div>
       </div>

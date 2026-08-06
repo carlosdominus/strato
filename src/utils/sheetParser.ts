@@ -65,6 +65,98 @@ export const SHEETS_CONFIG = [
   },
 ];
 
+const MONTH_NAMES_PT = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
+export function getMonthLabelFromIsoDate(isoDateStr: string): string {
+  if (!isoDateStr) return 'Agosto 2026';
+  const parts = isoDateStr.split('-');
+  if (parts.length >= 2) {
+    const y = parts[0];
+    const m = parseInt(parts[1], 10) - 1;
+    if (m >= 0 && m < 12) {
+      return `${MONTH_NAMES_PT[m]} ${y}`;
+    }
+  }
+  return 'Agosto 2026';
+}
+
+export function calculateEffectiveInvoiceDate(
+  purchaseDateStr: string, // YYYY-MM-DD
+  accountName: string,
+  paymentMethod: string,
+  cards: any[] = []
+) {
+  const accountLower = (accountName || '').toLowerCase();
+  const methodLower = (paymentMethod || '').toLowerCase();
+
+  const isCreditCard =
+    methodLower.includes('cartão') ||
+    methodLower.includes('cartao') ||
+    methodLower.includes('crédito') ||
+    methodLower.includes('credito') ||
+    accountLower.includes('cartão') ||
+    accountLower.includes('cartao');
+
+  if (!isCreditCard) {
+    return {
+      isCreditCard: false,
+      cardName: undefined,
+      purchaseDate: purchaseDateStr,
+      effectiveExpenseDate: purchaseDateStr,
+      effectiveMonthLabel: getMonthLabelFromIsoDate(purchaseDateStr),
+      invoiceDueDateStr: undefined,
+    };
+  }
+
+  // Find matching card in cards list or default to closing: 2, due: 8 (Mercado Livre pattern)
+  const matchedCard = cards.find((c) => {
+    const cName = (c.name || '').toLowerCase();
+    if (!cName) return false;
+    return accountLower.includes(cName) || methodLower.includes(cName) || cName.includes(accountLower);
+  }) || cards[0] || { name: 'Cartão de Crédito', closingDay: 2, dueDay: 8 };
+
+  const closingDay = matchedCard.closingDay || 2;
+  const dueDay = matchedCard.dueDay || 8;
+
+  const parts = purchaseDateStr.split('-');
+  let year = parseInt(parts[0], 10) || 2026;
+  let monthIndex = (parseInt(parts[1], 10) || 8) - 1; // 0-indexed JS month
+  const day = parseInt(parts[2], 10) || 1;
+
+  // If purchase day is STRICTLY AFTER closing day of current month, it moves to next month's invoice!
+  if (day > closingDay) {
+    monthIndex += 1;
+  }
+
+  // If due day is earlier than closing day in calendar month (e.g., closes on 25th, due on 5th of next month)
+  if (dueDay < closingDay) {
+    monthIndex += 1;
+  }
+
+  const dueDateObj = new Date(year, monthIndex, dueDay);
+  const dueY = dueDateObj.getFullYear();
+  const dueM = String(dueDateObj.getMonth() + 1).padStart(2, '0');
+  const dueD = String(dueDateObj.getDate()).padStart(2, '0');
+
+  const effectiveExpenseDate = `${dueY}-${dueM}-${dueD}`;
+  const effectiveMonthLabel = getMonthLabelFromIsoDate(effectiveExpenseDate);
+  const invoiceDueDateStr = `${dueD}/${dueM}/${dueY}`;
+
+  return {
+    isCreditCard: true,
+    cardName: matchedCard.name,
+    closingDay,
+    dueDay,
+    purchaseDate: purchaseDateStr,
+    effectiveExpenseDate,
+    effectiveMonthLabel,
+    invoiceDueDateStr,
+  };
+}
+
 export async function parseAndFetchAllSheets(authHeader?: string) {
   const customHeaders: Record<string, string> = {};
   if (authHeader) {
@@ -82,21 +174,57 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
   let liveTotalIncome = 0;
   let liveTotalExpenses = 0;
 
-  // Fetch real-time USD rate
-  let usdRateCommercial = 5.50;
+  // Fetch real-time USD rate from Google Sheets 'Cotações atuais'!K1 or fallback
+  let usdRateCommercial = 5.14;
   try {
-    const rateResp = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
-    if (rateResp.ok) {
-      const rateData = await rateResp.json();
-      if (rateData && rateData.USDBRL && rateData.USDBRL.bid) {
-        const parsedRate = parseFloat(rateData.USDBRL.bid);
-        if (parsedRate > 3 && parsedRate < 10) {
-          usdRateCommercial = parsedRate;
+    const sheetQuoteUrls = [
+      'https://docs.google.com/spreadsheets/d/1fv-MsaKURTBGIB8a3UWfLNKa5Yx6AfHXWTTYPZ1iB3c/gviz/tq?tqx=out:csv&sheet=Cota%C3%A7%C3%B5es%20atuais',
+      'https://docs.google.com/spreadsheets/d/1fv-MsaKURTBGIB8a3UWfLNKa5Yx6AfHXWTTYPZ1iB3c/export?format=csv&sheet=Cota%C3%A7%C3%B5es%20atuais'
+    ];
+
+    for (const url of sheetQuoteUrls) {
+      const rateResp = await fetch(url, { headers: customHeaders });
+      if (rateResp.ok) {
+        const csvText = await rateResp.text();
+        const rows = parseCsvToRows(csvText);
+        if (rows.length > 0 && rows[0] && rows[0].length >= 11) {
+          const val = parseCleanNumber(rows[0][10]); // Cell K1 is index 10
+          if (val > 3 && val < 10) {
+            usdRateCommercial = val;
+            break;
+          }
+        }
+        for (const row of rows) {
+          for (const cell of row) {
+            const parsed = parseCleanNumber(cell);
+            if (parsed >= 4.5 && parsed <= 7.0) {
+              usdRateCommercial = parsed;
+              break;
+            }
+          }
+          if (usdRateCommercial !== 5.14) break;
         }
       }
     }
-  } catch {
-    // Keep default rate if offline
+  } catch (sheetQuoteErr) {
+    console.warn('Could not fetch quote from Cotações atuais sheet tab:', sheetQuoteErr);
+  }
+
+  if (usdRateCommercial === 5.14) {
+    try {
+      const rateResp = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
+      if (rateResp.ok) {
+        const rateData = await rateResp.json();
+        if (rateData && rateData.USDBRL && rateData.USDBRL.bid) {
+          const parsedRate = parseFloat(rateData.USDBRL.bid);
+          if (parsedRate > 3 && parsedRate < 10) {
+            usdRateCommercial = parsedRate;
+          }
+        }
+      }
+    } catch {
+      // Keep default 5.14 rate if offline
+    }
   }
 
   const repatriationFeePercent = 1.8;
@@ -402,6 +530,54 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
         httpCode: 500,
       });
     }
+  }
+
+  // Post-processing: Attach credit card invoice dates to transactions
+  // and compute credit card current invoices for active month
+  let effectiveTotalExpensesCurrentMonth = 0;
+
+  parsedExtratoTransactions = parsedExtratoTransactions.map((tx) => {
+    const timing = calculateEffectiveInvoiceDate(
+      tx.date,
+      tx.account || 'Geral',
+      tx.paymentMethod || 'PIX',
+      parsedCards
+    );
+
+    const updatedTx = {
+      ...tx,
+      purchaseDate: tx.date,
+      effectiveExpenseDate: timing.effectiveExpenseDate,
+      effectiveMonthLabel: timing.effectiveMonthLabel,
+      isCreditCard: timing.isCreditCard,
+      cardName: timing.cardName,
+      invoiceDueDateStr: timing.invoiceDueDateStr,
+    };
+
+    if (tx.type === 'expense') {
+      // If effective expense month is "Agosto 2026", add to current month expense!
+      if (timing.effectiveMonthLabel === 'Agosto 2026') {
+        effectiveTotalExpensesCurrentMonth += tx.amount;
+      }
+    }
+
+    return updatedTx;
+  });
+
+  // Calculate current invoice sums for each credit card for August 2026
+  parsedCards = parsedCards.map((card) => {
+    const cardInvoicesSum = parsedExtratoTransactions
+      .filter((tx) => tx.type === 'expense' && tx.isCreditCard && tx.cardName === card.name && tx.effectiveMonthLabel === 'Agosto 2026')
+      .reduce((sum, tx) => sum + tx.amount, 0);
+
+    return {
+      ...card,
+      currentInvoice: cardInvoicesSum,
+    };
+  });
+
+  if (effectiveTotalExpensesCurrentMonth > 0) {
+    liveTotalExpenses = effectiveTotalExpensesCurrentMonth;
   }
 
   return {
