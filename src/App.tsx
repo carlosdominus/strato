@@ -10,6 +10,7 @@ import { DividasView } from './components/DividasView';
 import { MetasView } from './components/MetasView';
 import { ConfiguracoesView } from './components/ConfiguracoesView';
 import { ExtratoView } from './components/ExtratoView';
+import { parseAndFetchAllSheets } from './utils/sheetParser';
 
 import {
   MOCK_TRANSACTIONS,
@@ -27,11 +28,37 @@ import { Transaction, SpreadsheetConnection, FinancialGoal, Debtor, MonthSummary
 import { initAuth, googleSignIn, logout, getAccessToken } from './lib/firebase';
 import { User } from 'firebase/auth';
 
+const getTabFromHash = (): string => {
+  if (typeof window === 'undefined') return 'dashboard';
+  const rawHash = window.location.hash.replace(/^#\/?/, '').trim().toLowerCase();
+  const validTabs = ['dashboard', 'resumo', 'investimentos', 'cartoes', 'dividas', 'metas', 'extrato', 'configuracoes'];
+  return validTabs.includes(rawHash) ? rawHash : 'dashboard';
+};
+
 export function App() {
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeTab, setActiveTab] = useState<string>(getTabFromHash);
   const [selectedMonth, setSelectedMonth] = useState<string>('Agosto 2026');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
+
+  // Sync hash changes (URL back/forward and direct links)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const currentTab = getTabFromHash();
+      if (currentTab !== activeTab) {
+        setActiveTab(currentTab);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [activeTab]);
+
+  const handleSelectTab = (tabId: string) => {
+    setActiveTab(tabId);
+    if (window.location.hash !== `#/${tabId}`) {
+      window.location.hash = `#/${tabId}`;
+    }
+  };
 
   // App domain state
   const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
@@ -60,9 +87,25 @@ export function App() {
         headers['Authorization'] = `Bearer ${activeToken}`;
       }
 
-      const res = await fetch('/api/fetch-sheets', { headers });
-      const data = await res.json();
-      if (data.success) {
+      let data: any = null;
+      try {
+        const res = await fetch('/api/fetch-sheets', { headers });
+        if (res.ok) {
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            data = await res.json();
+          }
+        }
+      } catch (apiErr) {
+        console.warn('API route unavailable, using direct browser sheet parser for Vercel/Static host:', apiErr);
+      }
+
+      // Fallback to client-side parser if API endpoint is not available or returned an error (e.g. Vercel static hosting)
+      if (!data || !data.success) {
+        data = await parseAndFetchAllSheets(activeToken || undefined);
+      }
+
+      if (data && data.success) {
         if (data.sheets && Array.isArray(data.sheets)) {
           setSpreadsheets((prev) =>
             prev.map((sheet) => {
@@ -331,7 +374,7 @@ export function App() {
         onMonthChange={setSelectedMonth}
         monthsList={monthsList}
         onOpenManualModal={() => setIsManualModalOpen(true)}
-        onNavigateToTab={setActiveTab}
+        onNavigateToTab={handleSelectTab}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         transactions={transactions}
@@ -341,7 +384,7 @@ export function App() {
       />
 
       {/* Main Navigation Tabs */}
-      <NavTabs activeTab={activeTab} onSelectTab={setActiveTab} />
+      <NavTabs activeTab={activeTab} onSelectTab={handleSelectTab} />
 
       {/* Main Content Area */}
       <main className="transition-all duration-300">
@@ -352,7 +395,7 @@ export function App() {
             recentTransactions={transactions}
             creditCards={creditCards}
             selectedMonth={selectedMonth}
-            onNavigateToTab={setActiveTab}
+            onNavigateToTab={handleSelectTab}
             onOpenManualModal={() => setIsManualModalOpen(true)}
             onUpdateMonthData={handleUpdateMonthSummary}
           />

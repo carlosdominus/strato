@@ -74,9 +74,13 @@ export const NavTabs: React.FC<NavTabsProps> = ({ activeTab, onSelectTab }) => {
           const isActive = activeTab === tab.id;
 
           return (
-            <button
+            <a
               key={tab.id}
-              onClick={() => onSelectTab(tab.id)}
+              href={`#/${tab.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                onSelectTab(tab.id);
+              }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer relative ${
                 isActive
                   ? 'bg-[#11310C] text-[#FAFBF6] shadow-md shadow-[#11310C]/20 ring-1 ring-[#C4C240]/40'
@@ -108,7 +112,7 @@ export const NavTabs: React.FC<NavTabsProps> = ({ activeTab, onSelectTab }) => {
                   {tab.badge}
                 </span>
               )}
-            </button>
+            </a>
           );
         })}
       </div>
