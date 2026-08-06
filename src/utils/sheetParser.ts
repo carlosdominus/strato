@@ -83,14 +83,100 @@ export function getMonthLabelFromIsoDate(isoDateStr: string): string {
   return 'Agosto 2026';
 }
 
+export function convertBrOrIsoToIsoDate(rawStr?: string): string | null {
+  if (!rawStr) return null;
+  const s = rawStr.trim();
+  if (s.includes('/')) {
+    const parts = s.split('/');
+    if (parts.length === 3) {
+      const day = parts[0].padStart(2, '0');
+      const month = parts[1].padStart(2, '0');
+      const year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+      return `${year}-${month}-${day}`;
+    }
+  }
+  if (s.includes('-')) {
+    const parts = s.split('-');
+    if (parts.length === 3) {
+      return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    }
+  }
+  return null;
+}
+
+export function getTransactionAllocatedMonthLabel(tx: {
+  effectiveMonthLabel?: string;
+  effectiveExpenseDate?: string;
+  invoiceDueDateStr?: string;
+  date?: string;
+}): string {
+  if (tx.effectiveMonthLabel) {
+    return tx.effectiveMonthLabel;
+  }
+  if (tx.effectiveExpenseDate) {
+    return getMonthLabelFromIsoDate(tx.effectiveExpenseDate);
+  }
+  if (tx.invoiceDueDateStr) {
+    const isoFromDue = convertBrOrIsoToIsoDate(tx.invoiceDueDateStr);
+    if (isoFromDue) {
+      return getMonthLabelFromIsoDate(isoFromDue);
+    }
+  }
+  if (tx.date) {
+    return getMonthLabelFromIsoDate(tx.date);
+  }
+  return 'Agosto 2026';
+}
+
 export function calculateEffectiveInvoiceDate(
   purchaseDateStr: string, // YYYY-MM-DD
   accountName: string,
   paymentMethod: string,
-  cards: any[] = []
+  cards: any[] = [],
+  explicitDueDateStr?: string // Data de Vencimento
 ) {
   const accountLower = (accountName || '').toLowerCase();
   const methodLower = (paymentMethod || '').toLowerCase();
+
+  // If an explicit due date (Data de Vencimento) is provided, use it directly! (Golden Rule #1)
+  if (explicitDueDateStr && explicitDueDateStr.trim()) {
+    let cleanIso = '';
+    let cleanBR = '';
+    const raw = explicitDueDateStr.trim();
+    if (raw.includes('/')) {
+      const p = raw.split('/');
+      if (p.length === 3) {
+        const d = p[0].padStart(2, '0');
+        const m = p[1].padStart(2, '0');
+        const y = p[2].length === 2 ? `20${p[2]}` : p[2];
+        cleanIso = `${y}-${m}-${d}`;
+        cleanBR = `${d}/${m}/${y}`;
+      }
+    } else if (raw.includes('-')) {
+      cleanIso = raw;
+      const p = raw.split('-');
+      if (p.length === 3) {
+        cleanBR = `${p[2].padStart(2, '0')}/${p[1].padStart(2, '0')}/${p[0]}`;
+      }
+    }
+
+    if (cleanIso) {
+      const matchedCard = cards.find((c) => {
+        const cName = (c.name || '').toLowerCase();
+        if (!cName) return false;
+        return accountLower.includes(cName) || methodLower.includes(cName) || cName.includes(accountLower);
+      });
+
+      return {
+        isCreditCard: true,
+        cardName: matchedCard ? matchedCard.name : undefined,
+        purchaseDate: purchaseDateStr,
+        effectiveExpenseDate: cleanIso,
+        effectiveMonthLabel: getMonthLabelFromIsoDate(cleanIso),
+        invoiceDueDateStr: cleanBR || explicitDueDateStr,
+      };
+    }
+  }
 
   const isCreditCard =
     methodLower.includes('cartão') ||
@@ -126,7 +212,7 @@ export function calculateEffectiveInvoiceDate(
   let monthIndex = (parseInt(parts[1], 10) || 8) - 1; // 0-indexed JS month
   const day = parseInt(parts[2], 10) || 1;
 
-  // If purchase day is STRICTLY AFTER closing day of current month, it moves to next month's invoice!
+  // If purchase day is strictly after closing day of current month, it moves to next month's invoice!
   if (day > closingDay) {
     monthIndex += 1;
   }
@@ -318,6 +404,7 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
             const description = cols[2] || 'Sem descrição';
             const account = cols[3] || 'Geral';
             const paymentMethod = cols[4] || 'PIX';
+            const explicitDueDateStr = cols[5] ? cols[5].trim() : undefined;
 
             const isIncome = rawAmount > 0;
             const amount = Math.abs(rawAmount);
@@ -353,6 +440,7 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
               type: isIncome ? 'income' : 'expense',
               account,
               paymentMethod,
+              invoiceDueDateStr: explicitDueDateStr,
               sourceSheet: 'Google Sheets (Extrato)',
               status: 'concluido',
             });
@@ -581,7 +669,8 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
       tx.date,
       tx.account || 'Geral',
       tx.paymentMethod || 'PIX',
-      parsedCards
+      parsedCards,
+      tx.invoiceDueDateStr
     );
 
     const updatedTx = {

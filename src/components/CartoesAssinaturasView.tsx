@@ -9,9 +9,60 @@ import {
   XCircle,
   Plus,
   ShieldCheck,
+  Palette,
+  Store,
+  Bot,
+  ShoppingBag,
+  Music,
+  Film,
+  Code,
+  Cloud,
+  Dumbbell,
+  Car,
+  Zap,
 } from 'lucide-react';
 import { CreditCardSheet, Subscription } from '../types';
 import { formatCurrency } from '../utils/formatters';
+
+const getServiceIcon = (serviceName: string, category?: string) => {
+  const name = (serviceName || '').toLowerCase();
+  const cat = (category || '').toLowerCase();
+
+  if (name.includes('adobe') || name.includes('figma') || name.includes('canva') || name.includes('photoshop')) {
+    return <Palette className="w-5 h-5" />;
+  }
+  if (name.includes('shopify') || name.includes('nuvemshop') || name.includes('e-commerce') || name.includes('loja')) {
+    return <Store className="w-5 h-5" />;
+  }
+  if (name.includes('claude') || name.includes('openai') || name.includes('chatgpt') || name.includes('midjourney') || name.includes('anthropic')) {
+    return <Bot className="w-5 h-5" />;
+  }
+  if (name.includes('meli') || name.includes('mercado livre') || name.includes('disney') || name.includes('netflix') || name.includes('prime') || name.includes('hbo') || name.includes('youtube')) {
+    return <Tv className="w-5 h-5" />;
+  }
+  if (name.includes('spotify') || name.includes('deezer') || name.includes('apple music') || name.includes('music')) {
+    return <Music className="w-5 h-5" />;
+  }
+  if (name.includes('github') || name.includes('vercel') || name.includes('aws') || name.includes('hosting')) {
+    return <Code className="w-5 h-5" />;
+  }
+  if (name.includes('icloud') || name.includes('drive') || name.includes('dropbox') || name.includes('cloud')) {
+    return <Cloud className="w-5 h-5" />;
+  }
+  if (name.includes('gym') || name.includes('smartfit') || name.includes('bodytech') || name.includes('academia')) {
+    return <Dumbbell className="w-5 h-5" />;
+  }
+  if (name.includes('uber') || name.includes('99') || name.includes('carro')) {
+    return <Car className="w-5 h-5" />;
+  }
+
+  if (cat.includes('design') || cat.includes('software')) return <Palette className="w-5 h-5" />;
+  if (cat.includes('e-commerce') || cat.includes('plataforma')) return <Store className="w-5 h-5" />;
+  if (cat.includes('inteligência') || cat.includes('ai')) return <Bot className="w-5 h-5" />;
+  if (cat.includes('lazer') || cat.includes('streaming')) return <Tv className="w-5 h-5" />;
+
+  return <Zap className="w-5 h-5" />;
+};
 
 interface CartoesAssinaturasViewProps {
   creditCards: CreditCardSheet[];
@@ -210,7 +261,7 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
                     <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold ${
                       isActive ? 'bg-[#11310C] text-[#C4C240]' : 'bg-amber-200 text-amber-900'
                     }`}>
-                      <Tv className="w-5 h-5" />
+                      {getServiceIcon(sub.serviceName, sub.category)}
                     </div>
                     <div>
                       <h4 className="font-extrabold text-sm text-[#11310C]">{sub.serviceName}</h4>

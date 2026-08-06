@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Transaction, TransactionType } from '../types';
 import { formatCurrency, formatDateBR } from '../utils/formatters';
+import { getTransactionAllocatedMonthLabel, getMonthLabelFromIsoDate } from '../utils/sheetParser';
 
 interface ExtratoViewProps {
   transactions: Transaction[];
@@ -38,8 +39,17 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
   const daysInMonth = Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, '0'));
 
   const [filterMode, setFilterMode] = useState<'fatura' | 'compra'>('fatura');
+  const [filterMonthScope, setFilterMonthScope] = useState<'selecionado' | 'todos'>('selecionado');
 
   const filteredTransactions = transactions.filter((tx) => {
+    // Golden Rule Month Filter
+    let matchesMonth = true;
+    if (filterMonthScope === 'selecionado') {
+      const allocatedMonth = getTransactionAllocatedMonthLabel(tx);
+      const purchaseMonth = getMonthLabelFromIsoDate(tx.date);
+      matchesMonth = filterMode === 'fatura' ? allocatedMonth === selectedMonth : purchaseMonth === selectedMonth;
+    }
+
     const matchesType = filterType === 'todos' || tx.type === filterType;
     const matchesCategory = filterCategory === 'todas' || tx.category === filterCategory;
     const matchesAccount = filterAccount === 'todas' || (tx.account || 'Geral') === filterAccount;
@@ -57,7 +67,7 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
       (tx.paymentMethod && tx.paymentMethod.toLowerCase().includes(localSearch.toLowerCase())) ||
       (tx.account && tx.account.toLowerCase().includes(localSearch.toLowerCase()));
 
-    return matchesType && matchesCategory && matchesAccount && matchesMethod && matchesDay && matchesSearch;
+    return matchesMonth && matchesType && matchesCategory && matchesAccount && matchesMethod && matchesDay && matchesSearch;
   });
 
   const parseDateMs = (dateStr: string): number => {
@@ -195,6 +205,30 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Scope Selector: Month Selected vs All Months */}
+          <div className="flex items-center gap-1 p-1 bg-[#11310C]/5 rounded-2xl border border-[#11310C]/10">
+            <button
+              onClick={() => setFilterMonthScope('selecionado')}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                filterMonthScope === 'selecionado'
+                  ? 'bg-[#11310C] text-[#FAFBF6]'
+                  : 'text-[#11310C]/70 hover:text-[#11310C]'
+              }`}
+            >
+              Mês: {selectedMonth}
+            </button>
+            <button
+              onClick={() => setFilterMonthScope('todos')}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                filterMonthScope === 'todos'
+                  ? 'bg-[#11310C] text-[#FAFBF6]'
+                  : 'text-[#11310C]/70 hover:text-[#11310C]'
+              }`}
+            >
+              Todos os Meses
+            </button>
+          </div>
+
           {/* Mode Selector: Fatura vs Compra */}
           <div className="flex items-center gap-1 p-1 bg-[#C4C240]/20 rounded-2xl border border-[#C4C240]/40">
             <button
@@ -204,9 +238,9 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
                   ? 'bg-[#11310C] text-[#FAFBF6] shadow-sm'
                   : 'text-[#11310C]/80 hover:text-[#11310C]'
               }`}
-              title="Considera o gasto no mês do Vencimento da Fatura do Cartão"
+              title="Prioriza Vencimento/Fatura (Regra de Ouro do Fluxo de Caixa)"
             >
-              Mês da Fatura Paga
+              Mês Vencimento/Fatura
             </button>
             <button
               onClick={() => setFilterMode('compra')}
@@ -215,7 +249,7 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
                   ? 'bg-[#11310C] text-[#FAFBF6] shadow-sm'
                   : 'text-[#11310C]/80 hover:text-[#11310C]'
               }`}
-              title="Considera o gasto no mês da compra no carrinho"
+              title="Exibe no mês em que a compra foi efetuada"
             >
               Mês da Compra
             </button>

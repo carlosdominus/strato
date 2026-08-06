@@ -10,7 +10,7 @@ import { DividasView } from './components/DividasView';
 import { MetasView } from './components/MetasView';
 import { ConfiguracoesView } from './components/ConfiguracoesView';
 import { ExtratoView } from './components/ExtratoView';
-import { parseAndFetchAllSheets } from './utils/sheetParser';
+import { parseAndFetchAllSheets, calculateEffectiveInvoiceDate, getTransactionAllocatedMonthLabel } from './utils/sheetParser';
 
 import {
   MOCK_TRANSACTIONS,
@@ -193,9 +193,10 @@ export function App() {
             let monthIncome = 0;
             let monthExpenses = 0;
 
-            if (monthNum && activeTxs) {
+            if (activeTxs) {
               activeTxs.forEach((tx: Transaction) => {
-                if (tx.date && (tx.date.startsWith(`2026-${monthNum}`) || tx.date.startsWith(`05/${monthNum}`) || tx.date.includes(`/${monthNum}/2026`))) {
+                const allocatedMonth = getTransactionAllocatedMonthLabel(tx);
+                if (allocatedMonth === mKey) {
                   if (tx.type === 'income') monthIncome += tx.amount;
                   else if (tx.type === 'expense') monthExpenses += tx.amount;
                 }
@@ -295,39 +296,55 @@ export function App() {
 
   // Add new manual transaction and dynamically update monthly totals!
   const handleAddTransaction = (newTx: Omit<Transaction, 'id'>) => {
+    const timing = calculateEffectiveInvoiceDate(
+      newTx.date,
+      newTx.account || 'Geral',
+      newTx.paymentMethod || 'PIX',
+      creditCards,
+      newTx.invoiceDueDateStr
+    );
+
     const createdTx: Transaction = {
       ...newTx,
       id: `tx-manual-${Date.now()}`,
+      purchaseDate: newTx.date,
+      effectiveExpenseDate: timing.effectiveExpenseDate,
+      effectiveMonthLabel: timing.effectiveMonthLabel,
+      isCreditCard: timing.isCreditCard,
+      cardName: timing.cardName,
+      invoiceDueDateStr: timing.invoiceDueDateStr,
     };
 
     setTransactions((prev) => [createdTx, ...prev]);
 
-    // Recalculate summary totals for the active month
+    const targetMonth = timing.effectiveMonthLabel || selectedMonth;
+
+    // Recalculate summary totals for the allocated month
     setMonthsData((prev) => {
-      const currentMonth = prev[selectedMonth] || prev['Agosto 2026'];
+      const currentMonth = prev[targetMonth] || prev[selectedMonth] || prev['Agosto 2026'];
       let newIncome = currentMonth.totalIncome;
       let newExpenses = currentMonth.totalExpenses;
       let newInvestments = currentMonth.totalInvestments;
 
-      if (newTx.type === 'income') {
-        newIncome += newTx.amount;
-      } else if (newTx.type === 'expense') {
-        newExpenses += newTx.amount;
-      } else if (newTx.type === 'investment') {
-        newInvestments += newTx.amount;
+      if (createdTx.type === 'income') {
+        newIncome += createdTx.amount;
+      } else if (createdTx.type === 'expense') {
+        newExpenses += createdTx.amount;
+      } else if (createdTx.type === 'investment') {
+        newInvestments += createdTx.amount;
       }
 
       const newLeftover = newIncome - newExpenses;
 
       return {
         ...prev,
-        [selectedMonth]: {
+        [targetMonth]: {
           ...currentMonth,
           totalIncome: newIncome,
           totalExpenses: newExpenses,
           totalInvestments: newInvestments,
           leftover: newLeftover,
-          totalMoney: currentMonth.totalMoney + (newTx.type === 'income' ? newTx.amount : newTx.type === 'expense' ? -newTx.amount : 0),
+          totalMoney: currentMonth.totalMoney + (createdTx.type === 'income' ? createdTx.amount : createdTx.type === 'expense' ? -createdTx.amount : 0),
         },
       };
     });

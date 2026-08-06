@@ -51,14 +51,9 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
   netUsdRate,
   onOpenManualModal,
 }) => {
-  const [overrideUsdRate, setOverrideUsdRate] = useState<number | null>(null);
-  const [sheetCellRef, setSheetCellRef] = useState<string>('Investimentos!K2');
-  const [isEditingRate, setIsEditingRate] = useState<boolean>(false);
-  const [tempRateInput, setTempRateInput] = useState<string>('5.14');
-
-  const usdExchangeRateCommercial = overrideUsdRate !== null ? overrideUsdRate : (usdRate || 5.14); // Dynamic USD commercial rate (default 5.14)
+  const usdExchangeRateCommercial = usdRate || 5.14; // USD commercial rate dynamically fetched from Investimentos!K1
   const avenueRepatriationFeePercent = 1.8; // ~1.4% spread + 0.38% IOF
-  const netUsdRateAvenue = netUsdRate && overrideUsdRate === null ? netUsdRate : (usdExchangeRateCommercial * (1 - avenueRepatriationFeePercent / 100)); // Dynamic Net BRL/USD rate
+  const netUsdRateAvenue = netUsdRate || (usdExchangeRateCommercial * (1 - avenueRepatriationFeePercent / 100)); // Dynamic Net BRL/USD rate
 
   // Safe property extraction helper and filter zero assets as requested by user
   const safeInvestments = (investments || [])
@@ -116,15 +111,6 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
     value: inv.currentValue || 1,
   }));
 
-  const handleSaveRate = (e: React.FormEvent) => {
-    e.preventDefault();
-    const parsed = parseFloat(tempRateInput.replace(',', '.'));
-    if (!isNaN(parsed) && parsed > 0) {
-      setOverrideUsdRate(parsed);
-    }
-    setIsEditingRate(false);
-  };
-
   return (
     <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 space-y-6 pb-12">
       {/* Top Banner */}
@@ -136,7 +122,7 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
             </span>
             <span className="w-1.5 h-1.5 rounded-full bg-[#C4C240]" />
             <span className="text-xs font-bold text-[#11310C]">
-              Câmbio Dólar Comercial: R$ {usdExchangeRateCommercial.toFixed(2)} / USD
+              Sincronizado da Planilha Investimentos!K1
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
@@ -145,16 +131,10 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              setTempRateInput(usdExchangeRateCommercial.toString());
-              setIsEditingRate(true);
-            }}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs font-bold bg-[#11310C]/5 text-[#11310C] hover:bg-[#11310C]/10 border border-[#11310C]/10 cursor-pointer transition-all"
-          >
+          <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs font-bold bg-[#11310C]/5 text-[#11310C] border border-[#11310C]/10">
             <Globe className="w-4 h-4 text-[#C4C240]" />
-            <span>Ajustar Cotação (5.14)</span>
-          </button>
+            <span>Dólar (Investimentos!K1): R$ {usdExchangeRateCommercial.toFixed(2)}</span>
+          </div>
 
           <button
             onClick={onOpenManualModal}
@@ -165,79 +145,6 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
           </button>
         </div>
       </div>
-
-      {/* Câmbio Custom Modal */}
-      {isEditingRate && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 border border-[#11310C]/20 max-w-md w-full space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-lg text-[#11310C]">
-                Configurar Cotação do Dólar
-              </h3>
-              <button
-                onClick={() => setIsEditingRate(false)}
-                className="text-gray-400 hover:text-gray-600 text-sm font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            <p className="text-xs text-[#11310C]/70">
-              Defina o valor da taxa de câmbio do Dólar em reais (BRL). Hoje a cotação oficial é <strong>R$ 5,14</strong>.
-            </p>
-
-            <form onSubmit={handleSaveRate} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-[#11310C]/80 mb-1">
-                  Taxa do Dólar (R$ / USD):
-                </label>
-                <input
-                  type="text"
-                  value={tempRateInput}
-                  onChange={(e) => setTempRateInput(e.target.value)}
-                  placeholder="5.14"
-                  className="w-full px-4 py-2.5 rounded-2xl border border-[#11310C]/20 text-sm font-extrabold text-[#11310C] focus:outline-none focus:ring-2 focus:ring-[#C4C240]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#11310C]/80 mb-1">
-                  Célula de Origem na Planilha Google Sheets:
-                </label>
-                <input
-                  type="text"
-                  value={sheetCellRef}
-                  onChange={(e) => setSheetCellRef(e.target.value)}
-                  placeholder="Investimentos!K2"
-                  className="w-full px-4 py-2.5 rounded-2xl border border-[#11310C]/20 text-xs font-medium text-[#11310C] focus:outline-none focus:ring-2 focus:ring-[#C4C240]"
-                />
-                <p className="text-[10px] text-[#11310C]/50 mt-1">
-                  Se você tiver uma célula com a fórmula `=GOOGLEFINANCE("CURRENCY:USDBRL")`, informe a referência aqui.
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOverrideUsdRate(5.14);
-                    setIsEditingRate(false);
-                  }}
-                  className="px-4 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-700 hover:bg-gray-50"
-                >
-                  Restaurar 5,14
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#11310C] text-white hover:bg-[#11310C]/90"
-                >
-                  Salvar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Top Investment Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

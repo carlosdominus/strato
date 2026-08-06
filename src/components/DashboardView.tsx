@@ -27,6 +27,7 @@ import {
 } from 'recharts';
 import { MonthSummaryData, Transaction, CreditCardSheet, AIRecommendation } from '../types';
 import { formatCurrency, formatPercent, formatDateBR } from '../utils/formatters';
+import { getTransactionAllocatedMonthLabel } from '../utils/sheetParser';
 
 const CustomAreaTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -159,8 +160,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return 0;
   };
 
-  // Sort transactions strictly descending by date (most recent first)
-  const sortedTransactions = [...recentTransactions].sort((a, b) => parseDateMs(b.date) - parseDateMs(a.date));
+  // Filter and sort transactions for the selected month according to Golden Rule month allocation
+  const monthTransactions = recentTransactions.filter(
+    (tx) => getTransactionAllocatedMonthLabel(tx) === selectedMonth
+  );
+
+  const sortedTransactions = [...monthTransactions].sort(
+    (a, b) => parseDateMs(b.date) - parseDateMs(a.date)
+  );
 
   // Group installment transactions so multi-installment purchases (e.g. Galaxy Tab 1/12 .. 12/12) appear as 1 grouped item with the first installment date
   const groupedTransactions = React.useMemo(() => {
@@ -428,12 +435,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <stop offset="5%" stopColor="#11310C" stopOpacity={0.6} />
                     <stop offset="95%" stopColor="#11310C" stopOpacity={0.0} />
                   </linearGradient>
+                  <linearGradient id="colorGastos" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#E13513" stopOpacity={0.5} />
+                    <stop offset="95%" stopColor="#E13513" stopOpacity={0.0} />
+                  </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#11310C" strokeOpacity={0.08} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#11310C', fontWeight: 600 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#11310C' }} tickFormatter={(v) => `R$${v/1000}k`} />
                 <Tooltip content={<CustomAreaTooltip />} />
                 <Area type="monotone" dataKey="Renda" stroke="#11310C" strokeWidth={3} fillOpacity={1} fill="url(#colorRenda)" />
+                <Area type="monotone" dataKey="Gastos" stroke="#E13513" strokeWidth={3} fillOpacity={1} fill="url(#colorGastos)" />
                 <Area type="monotone" dataKey="Sobra" stroke="#C4C240" strokeWidth={3} fillOpacity={1} fill="url(#colorSobra)" />
               </AreaChart>
             </ResponsiveContainer>

@@ -20,6 +20,7 @@ export const ManualRegistrationModal: React.FC<ManualRegistrationModalProps> = (
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Alimentação');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dueDate, setDueDate] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Pix Itaú');
   const [targetSheet, setTargetSheet] = useState('Planilha_Extrato_Bancario.xlsx');
   const [notes, setNotes] = useState('');
@@ -43,6 +44,7 @@ export const ManualRegistrationModal: React.FC<ManualRegistrationModalProps> = (
         amount: numAmount,
         type,
         paymentMethod,
+        invoiceDueDateStr: dueDate ? dueDate : undefined,
         sourceSheet: targetSheet,
         status: 'concluido',
         notes,
@@ -178,7 +180,7 @@ export const ManualRegistrationModal: React.FC<ManualRegistrationModalProps> = (
             </div>
 
             {/* Category & Date */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-[11px] font-bold text-[#11310C]/70 uppercase mb-1">
                   Categoria
@@ -202,12 +204,26 @@ export const ManualRegistrationModal: React.FC<ManualRegistrationModalProps> = (
 
               <div>
                 <label className="block text-[11px] font-bold text-[#11310C]/70 uppercase mb-1">
-                  Data
+                  Data Compra
                 </label>
                 <input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/90 border border-[#11310C]/20 focus:outline-none focus:ring-2 focus:ring-[#C4C240] text-xs font-semibold text-[#11310C]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-[#11310C]/70 uppercase mb-1 flex items-center justify-between">
+                  <span>Vencimento</span>
+                  <span className="text-[9px] text-[#11310C]/40 lowercase">(opcional)</span>
+                </label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  placeholder="Data de Vencimento"
                   className="w-full px-3 py-2.5 rounded-xl bg-white/90 border border-[#11310C]/20 focus:outline-none focus:ring-2 focus:ring-[#C4C240] text-xs font-semibold text-[#11310C]"
                 />
               </div>
