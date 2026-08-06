@@ -116,6 +116,28 @@ async function startServer() {
       let liveTotalIncome = 0;
       let liveTotalExpenses = 0;
 
+      // Fetch real-time USD/BRL rate from AwesomeAPI
+      let usdRateCommercial = 5.50;
+      try {
+        const rateResp = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL', { signal: AbortSignal.timeout(3000) });
+        if (rateResp.ok) {
+          const rateData = await rateResp.json();
+          if (rateData && rateData.USDBRL && rateData.USDBRL.bid) {
+            const parsedRate = parseFloat(rateData.USDBRL.bid);
+            if (parsedRate > 3 && parsedRate < 10) {
+              usdRateCommercial = parsedRate;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Could not fetch live USD rate, using default rate');
+      }
+
+      const repatriationFeePercent = 1.8;
+      const netUsdRate = usdRateCommercial * (1 - repatriationFeePercent / 100);
+
+      let debtorsSummary = { pagouTotal: 0, pegouTotal: 0, restanteTotal: 0 };
+
       for (const sheet of sheetsConfig) {
         try {
           const response = await fetch(sheet.url, { headers: customHeaders });
@@ -286,32 +308,41 @@ async function startServer() {
             }
 
             if (sheet.id === 'sheet-devedores') {
-              let overallPagouPlus = 0;
-              let overallPegouMinus = 0;
-              let overallRestante = 0;
+              let lastBorrowerName = '';
+              let sumPegou = 0;
+              let sumPagou = 0;
 
               dataRows.forEach((cols, index) => {
-                const borrowerName = (cols[1] || '').trim();
-                if (!borrowerName || borrowerName.toLowerCase() === 'devedor') return;
+                let borrowerName = (cols[0] || '').trim();
+                const description = (cols[1] || '').trim();
+                const rawAmount = cols[2] || '';
+                const transactionAmount = parseCleanNumber(rawAmount);
+                const statusTag = (cols[3] || '').trim().toLowerCase(); // 'pegou' or 'pagou'
 
-                const description = cols[2] || '';
-                const transactionAmount = parseCleanNumber(cols[3]);
-                const statusTag = (cols[4] || '').trim().toLowerCase(); // 'pegou' or 'pagou'
+                // Skip header if it says 'devedor' or 'descrição'
+                if (borrowerName.toLowerCase() === 'devedor' || description.toLowerCase() === 'descrição' || description.toLowerCase() === 'descricao') return;
 
-                if (cols[6]) {
-                  const pPlus = parseCleanNumber(cols[6]);
-                  if (pPlus > 0) overallPagouPlus = pPlus;
-                }
-                if (cols[7]) {
-                  const pMinus = parseCleanNumber(cols[7]);
-                  if (pMinus > 0) overallPegouMinus = pMinus;
-                }
-                if (cols[8]) {
-                  const rVal = parseCleanNumber(cols[8]);
-                  if (rVal > 0) overallRestante = rVal;
+                // Skip completely empty rows
+                if (!borrowerName && !description && transactionAmount === 0 && !statusTag) {
+                  return;
                 }
 
-                const isPaid = statusTag.includes('pagou');
+                if (borrowerName) {
+                  lastBorrowerName = borrowerName;
+                } else if (lastBorrowerName) {
+                  borrowerName = lastBorrowerName;
+                } else {
+                  borrowerName = 'Outros';
+                }
+
+                // Determine movement: 'pagou' vs 'pegou'
+                const isPaid = statusTag.includes('pagou') || statusTag === 'pago' || statusTag.includes('devolveu') || statusTag.includes('quitad');
+
+                if (isPaid) {
+                  sumPagou += transactionAmount;
+                } else {
+                  sumPegou += transactionAmount;
+                }
 
                 parsedDebtors.push({
                   id: `debtor-sheet-${index}`,
@@ -320,18 +351,20 @@ async function startServer() {
                   transactionAmount,
                   movement: isPaid ? 'pagou' : 'pegou',
                   totalPaid: isPaid ? transactionAmount : 0,
-                  totalBorrowed: transactionAmount,
+                  totalBorrowed: isPaid ? 0 : transactionAmount,
                   remainingAmount: isPaid ? 0 : transactionAmount,
                   status: isPaid ? 'quitado' : 'pendente'
                 });
               });
+
+              debtorsSummary = {
+                pagouTotal: sumPagou,
+                pegouTotal: sumPegou,
+                restanteTotal: Math.max(0, sumPegou - sumPagou)
+              };
             }
 
             if (sheet.id === 'sheet-investimentos') {
-              const usdRateCommercial = 5.14; // Rate: R$ 5.14 / USD
-              const repatriationFeePercent = 1.8; // Avenue spread (~1.4%) + IOF repatriação (0.38%)
-              const netUsdRate = usdRateCommercial * (1 - repatriationFeePercent / 100); // ~5.0475 BRL/USD
-
               dataRows.forEach((cols, index) => {
                 if (!cols[0] || cols[0].toUpperCase() === 'TIKET' || cols[0].toUpperCase() === 'TICKER') return;
                 const ticker = cols[0].trim();
@@ -410,9 +443,10 @@ async function startServer() {
           totalExpenses: liveTotalExpenses,
           leftover: liveTotalIncome - liveTotalExpenses,
         } : undefined,
-        usdRate: 5.14,
-        repatriationFeePercent: 1.8,
-        netUsdRate: 5.0475,
+        usdRate: usdRateCommercial,
+        repatriationFeePercent,
+        netUsdRate,
+        debtorsSummary,
       });
     } catch (err: any) {
       console.error('Error fetching sheets:', err);

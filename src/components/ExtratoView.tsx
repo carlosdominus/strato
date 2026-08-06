@@ -57,6 +57,25 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
     return matchesType && matchesCategory && matchesAccount && matchesMethod && matchesDay && matchesSearch;
   });
 
+  const parseDateMs = (dateStr: string): number => {
+    if (!dateStr) return 0;
+    if (dateStr.includes('/')) {
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        return new Date(year, month, day).getTime();
+      }
+    }
+    if (dateStr.includes('-')) {
+      return new Date(dateStr).getTime();
+    }
+    return 0;
+  };
+
+  const sortedFilteredTransactions = [...filteredTransactions].sort((a, b) => parseDateMs(b.date) - parseDateMs(a.date));
+
   const totalIncomeInView = filteredTransactions
     .filter((t) => t.type === 'income')
     .reduce((acc, t) => acc + t.amount, 0);
@@ -254,8 +273,8 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#11310C]/5 font-semibold">
-              {filteredTransactions.length > 0 ? (
-                filteredTransactions.map((tx) => (
+              {sortedFilteredTransactions.length > 0 ? (
+                sortedFilteredTransactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-white/80 transition-all">
                     <td className="py-3.5 text-[#11310C]/70 font-mono text-[11px]">
                       {formatDateBR(tx.date)}

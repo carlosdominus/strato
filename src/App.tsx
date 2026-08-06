@@ -134,6 +134,9 @@ export function App() {
               });
             }
 
+            // Skip future months without total money recorded
+            if (totalMoney <= 0) return;
+
             const monthNum = monthNumMap[lowerRaw];
             let monthIncome = 0;
             let monthExpenses = 0;

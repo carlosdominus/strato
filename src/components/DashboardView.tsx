@@ -141,6 +141,69 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     };
   });
 
+  // Date parsing helper for DD/MM/YYYY or YYYY-MM-DD
+  const parseDateMs = (dateStr: string): number => {
+    if (!dateStr) return 0;
+    if (dateStr.includes('/')) {
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        return new Date(year, month, day).getTime();
+      }
+    }
+    if (dateStr.includes('-')) {
+      return new Date(dateStr).getTime();
+    }
+    return 0;
+  };
+
+  // Sort transactions strictly descending by date (most recent first)
+  const sortedTransactions = [...recentTransactions].sort((a, b) => parseDateMs(b.date) - parseDateMs(a.date));
+
+  // Dynamic values calculated based on timeRange filter
+  let displayIncome = currentMonthData.totalIncome;
+  let displayExpenses = currentMonthData.totalExpenses;
+  let displayLeftover = currentMonthData.leftover;
+  let periodLabel = 'do Mês';
+
+  if (timeRange === 'semana') {
+    periodLabel = 'na Semana';
+    const latestMs = sortedTransactions.length > 0 ? parseDateMs(sortedTransactions[0].date) : Date.now();
+    const sevenDaysAgoMs = latestMs - (7 * 24 * 60 * 60 * 1000);
+    const weekTxs = sortedTransactions.filter(tx => {
+      const ms = parseDateMs(tx.date);
+      return ms >= sevenDaysAgoMs && ms <= latestMs;
+    });
+    displayIncome = weekTxs.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+    displayExpenses = weekTxs.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    displayLeftover = displayIncome - displayExpenses;
+  } else if (timeRange === '3-meses') {
+    periodLabel = 'nos 3 Mêses';
+    const monthList = Object.values(allMonthsData);
+    displayIncome = monthList.reduce((sum: number, m) => sum + ((m as MonthSummaryData).totalIncome || 0), 0);
+    displayExpenses = monthList.reduce((sum: number, m) => sum + ((m as MonthSummaryData).totalExpenses || 0), 0);
+    displayLeftover = displayIncome - displayExpenses;
+  } else if (timeRange === 'ano') {
+    periodLabel = 'no Ano';
+    const monthList = Object.values(allMonthsData);
+    displayIncome = monthList.reduce((sum: number, m) => sum + ((m as MonthSummaryData).totalIncome || 0), 0);
+    displayExpenses = monthList.reduce((sum: number, m) => sum + ((m as MonthSummaryData).totalExpenses || 0), 0);
+    displayLeftover = displayIncome - displayExpenses;
+  } else if (timeRange === 'personalizado') {
+    periodLabel = 'no Período';
+    const startMs = new Date(customRange.start).getTime();
+    const endMs = new Date(customRange.end).getTime() + 86400000;
+    const customTxs = sortedTransactions.filter(tx => {
+      const ms = parseDateMs(tx.date);
+      return ms >= startMs && ms <= endMs;
+    });
+    displayIncome = customTxs.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+    displayExpenses = customTxs.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    displayLeftover = displayIncome - displayExpenses;
+  }
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 space-y-6 pb-12">
       {/* Abacaxi Pay Inspired Welcome & Range Selector */}
@@ -205,61 +268,61 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* Primary Financial Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Ganho no Mês */}
+        {/* Metric 1: Ganho no Período */}
         <div className="glass-card rounded-3xl p-5 border border-white/90 relative overflow-hidden group hover:border-[#C4C240]/40 transition-all">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider">
-              Ganhos do Mês
+              Ganhos {periodLabel}
             </span>
             <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
               <ArrowUpRight className="w-4 h-4 text-emerald-700" />
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            {formatCurrency(currentMonthData.totalIncome)}
+            {formatCurrency(displayIncome)}
           </div>
           <div className="flex items-center gap-2 mt-2">
             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#C4C240]/25 text-[#11310C]">
-              +12.8%
+              Entradas
             </span>
-            <span className="text-[11px] font-medium text-[#11310C]/60">vs mês anterior</span>
+            <span className="text-[11px] font-medium text-[#11310C]/60">período selecionado</span>
           </div>
         </div>
 
-        {/* Metric 3: Gasto no Mês (Chili Red) */}
+        {/* Metric 2: Gasto no Período (Chili Red) */}
         <div className="glass-card rounded-3xl p-5 border border-white/90 relative overflow-hidden group hover:border-[#E13513]/30 transition-all">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider">
-              Gastos do Mês
+              Gastos {periodLabel}
             </span>
             <div className="w-8 h-8 rounded-xl bg-[#FDECE9] text-[#E13513] flex items-center justify-center">
               <ArrowDownRight className="w-4 h-4 text-[#E13513]" />
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-[#E13513]">
-            {formatCurrency(currentMonthData.totalExpenses)}
+            {formatCurrency(displayExpenses)}
           </div>
           <div className="flex items-center gap-2 mt-2">
             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#FDECE9] text-[#E13513]">
-              -4.2%
+              Saídas
             </span>
-            <span className="text-[11px] font-medium text-[#11310C]/60">controlado</span>
+            <span className="text-[11px] font-medium text-[#11310C]/60">período selecionado</span>
           </div>
         </div>
 
-        {/* Metric 4: Sobrou no Mês (Highlighted in Citron) */}
+        {/* Metric 3: Sobrou no Período (Highlighted in Citron) */}
         <div className="glass-card rounded-3xl p-5 border border-[#C4C240]/50 relative overflow-hidden bg-gradient-to-br from-white via-white to-[#F7F9E3]/50">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-[#11310C] uppercase tracking-wider flex items-center gap-1">
               <Sparkles className="w-3.5 h-3.5 text-[#C4C240]" />
-              Sobrou do Mês
+              Sobrou {periodLabel}
             </span>
             <div className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#11310C] text-[#C4C240]">
               LÍQUIDO
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            {formatCurrency(currentMonthData.leftover)}
+            {formatCurrency(displayLeftover)}
           </div>
           <div className="flex items-center gap-2 mt-2">
             <span className="text-[11px] font-semibold text-[#11310C]/80">
@@ -430,7 +493,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="space-y-2.5">
-            {recentTransactions.slice(0, 5).map((tx) => (
+            {sortedTransactions.slice(0, 5).map((tx) => (
               <div
                 key={tx.id}
                 className="flex items-center justify-between p-3.5 rounded-2xl bg-white/80 hover:bg-white border border-[#11310C]/10 transition-all"
