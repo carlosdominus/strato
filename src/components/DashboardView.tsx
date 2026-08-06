@@ -253,13 +253,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Abacaxi Pay Inspired Welcome & Range Selector */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 glass-card rounded-3xl p-6 border border-white/80">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-bold uppercase tracking-widest text-[#11310C]/60">
-              Visão Geral
-            </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#C4C240]" />
-            <span className="text-xs font-bold text-[#11310C]">{selectedMonth}</span>
-          </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C] tracking-tight">
             Controle <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#C4C240]">Financeiro</span> de Alta Precisão
           </h1>

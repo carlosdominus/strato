@@ -116,15 +116,6 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card rounded-3xl p-6 border border-white/90">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#11310C]/60">
-              Carteira de Ativos
-            </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#C4C240]" />
-            <span className="text-xs font-bold text-[#11310C]">
-              Sincronizado da Planilha Investimentos!K1
-            </span>
-          </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
             Meus <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#C4C240]">Investimentos</span> & Câmbio
           </h1>
@@ -133,7 +124,7 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs font-bold bg-[#11310C]/5 text-[#11310C] border border-[#11310C]/10">
             <Globe className="w-4 h-4 text-[#C4C240]" />
-            <span>Dólar (Investimentos!K1): R$ {usdExchangeRateCommercial.toFixed(2)}</span>
+            <span>Dólar Comercial: R$ {usdExchangeRateCommercial.toFixed(2)}</span>
           </div>
 
           <button
@@ -150,22 +141,21 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Posição Intacta em Dólares (USD $) */}
         <div className="glass-card rounded-3xl p-5 border border-white/90 bg-gradient-to-br from-white via-white to-emerald-50/50">
-          <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider mb-2 flex items-center justify-between">
-            <span>Posição Bruta em USD ($)</span>
-            <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">Dólar Puro</span>
+          <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider mb-2 block">
+            Valor bruto em USD ($)
           </span>
           <div className="text-2xl sm:text-3xl font-extrabold text-emerald-900">
             $ {totalUsdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <p className="text-[11px] font-medium text-[#11310C]/70 mt-2">
-            Valor intacto mantido em carteira internacional (USD)
+            Valor mantido em carteira internacional
           </p>
         </div>
 
         {/* Card 2: Valor Bruto Convertido em R$ sem IOF */}
         <div className="glass-card rounded-3xl p-5 border border-white/90">
           <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider block mb-2">
-            Valor Bruto em R$ (@ {usdExchangeRateCommercial.toFixed(2)})
+            Valor bruto em R$ ({usdExchangeRateCommercial.toFixed(2)})
           </span>
           <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
             {formatCurrency(totalBrlCommercial)}
@@ -207,20 +197,109 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
         </div>
       </div>
 
-      {/* Main Allocation & List */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Allocation Donut Chart (1 Col) */}
-        <div className="glass-card rounded-3xl p-6 border border-white/90 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-extrabold text-[#11310C]">
-                Alocação de <span className="font-serif italic font-bold text-xl text-[#C4C240]">Ativos</span>
-              </h3>
-              <p className="text-xs text-[#11310C]/60">Proporção por ativo individual</p>
-            </div>
+      {/* 1. Investment List Table (Full Width Top Block) */}
+      <div className="glass-card rounded-3xl p-6 border border-white/90 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#11310C]/10">
+          <div>
+            <h3 className="text-lg font-extrabold text-[#11310C]">
+              Ativos em <span className="font-serif italic font-bold text-xl text-[#C4C240]">Carteira</span>
+            </h3>
+            <p className="text-xs text-[#11310C]/60">Sincronizado em R$ (BRL) e $ (USD)</p>
           </div>
+          <span className="text-xs font-extrabold text-[#11310C] bg-[#11310C]/5 px-3 py-1 rounded-full border border-[#11310C]/10">
+            {safeInvestments.length} Ativos
+          </span>
+        </div>
 
-          <div className="h-60 w-full flex items-center justify-center">
+        {safeInvestments.length === 0 ? (
+          <div className="p-8 text-center space-y-3 bg-white/60 rounded-2xl border border-[#11310C]/10">
+            <Building2 className="w-8 h-8 text-[#11310C]/40 mx-auto" />
+            <h4 className="font-extrabold text-sm text-[#11310C]">Nenhum Ativo Carregado</h4>
+            <p className="text-xs text-[#11310C]/60 max-w-md mx-auto font-medium">
+              Sua planilha de investimentos no Google Sheets é privada ou ainda não respondeu à conexão. Na aba <strong>Configurações</strong>, faça login com a conta Google dona da planilha para liberar a sincronização em tempo real.
+            </p>
+          </div>
+        ) : (
+          /* Table with clean headers and no line breaks */
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-[#11310C] whitespace-nowrap">
+              <thead>
+                <tr className="border-b border-[#11310C]/10 text-[10px] font-bold uppercase tracking-wider text-[#11310C]/60">
+                  <th className="pb-2 whitespace-nowrap">Ticker</th>
+                  <th className="pb-2 whitespace-nowrap">Nome</th>
+                  <th className="pb-2 whitespace-nowrap">Classe</th>
+                  <th className="pb-2 text-right whitespace-nowrap">Ações</th>
+                  <th className="pb-2 text-right whitespace-nowrap">P. Médio</th>
+                  <th className="pb-2 text-right whitespace-nowrap">P. Atual</th>
+                  <th className="pb-2 text-right whitespace-nowrap">Var $</th>
+                  <th className="pb-2 text-right whitespace-nowrap">Var %</th>
+                  <th className="pb-2 text-right whitespace-nowrap">USD Aplicado</th>
+                  <th className="pb-2 text-right whitespace-nowrap">USD Atual</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#11310C]/5 font-semibold">
+                {safeInvestments.map((inv) => {
+                  const isPositive = inv.usdChange >= 0;
+
+                  return (
+                    <tr key={inv.id} className="hover:bg-white/60 transition-all">
+                      <td className="py-3 font-mono font-extrabold text-[#11310C] whitespace-nowrap">
+                        {inv.ticker}
+                      </td>
+                      <td className="py-3 font-bold text-[#11310C] whitespace-nowrap">
+                        {inv.name}
+                      </td>
+                      <td className="py-3 text-[10px] whitespace-nowrap">
+                        <span className="px-2.5 py-1 rounded-full bg-[#11310C]/10 text-[#11310C] font-bold whitespace-nowrap inline-block">
+                          {inv.assetClass || 'Ação'}
+                        </span>
+                      </td>
+                      <td className="py-3 text-right font-extrabold whitespace-nowrap">
+                        {inv.sharesCount % 1 === 0 ? inv.sharesCount : parseFloat(inv.sharesCount.toFixed(5))}
+                      </td>
+                      <td className="py-3 text-right text-[#11310C]/80 whitespace-nowrap">
+                        ${inv.averagePrice.toFixed(2)}
+                      </td>
+                      <td className="py-3 text-right font-extrabold text-[#11310C] whitespace-nowrap">
+                        ${inv.currentPrice.toFixed(2)}
+                      </td>
+                      <td className={`py-3 text-right font-extrabold whitespace-nowrap ${isPositive ? 'text-emerald-800' : 'text-[#E13513]'}`}>
+                        {isPositive ? '+' : ''}${inv.usdChange.toFixed(2)}
+                      </td>
+                      <td className="py-3 text-right whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold whitespace-nowrap ${
+                          isPositive ? 'bg-emerald-100 text-emerald-900' : 'bg-red-100 text-red-900'
+                        }`}>
+                          {isPositive ? '+' : ''}{inv.percentChange.toFixed(2)}%
+                        </span>
+                      </td>
+                      <td className="py-3 text-right text-[#11310C]/70 whitespace-nowrap">
+                        ${inv.usdApplied.toFixed(2)}
+                      </td>
+                      <td className="py-3 text-right font-extrabold text-emerald-900 whitespace-nowrap">
+                        ${inv.usdCurrent.toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 2. Allocation Donut Chart (Moved Below Table, Legend on the Right) */}
+      <div className="glass-card rounded-3xl p-6 border border-white/90 space-y-4">
+        <div>
+          <h3 className="text-lg font-extrabold text-[#11310C]">
+            Alocação de <span className="font-serif italic font-bold text-xl text-[#C4C240]">Ativos</span>
+          </h3>
+          <p className="text-xs text-[#11310C]/60">Proporção por ativo individual</p>
+        </div>
+
+        <div className="flex flex-col md:flex-row items-center gap-8 pt-2">
+          {/* Donut Chart on the Left */}
+          <div className="w-full md:w-72 h-64 flex items-center justify-center flex-shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -241,114 +320,25 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
             </ResponsiveContainer>
           </div>
 
-          {/* Custom Legend */}
-          <div className="space-y-2 pt-2 pr-3 border-t border-[#11310C]/10 max-h-48 overflow-y-auto">
-            {pieData.slice(0, 10).map((item, idx) => (
-              <div key={item.name} className="flex items-center justify-between text-xs font-bold">
-                <div className="flex items-center gap-2 truncate">
+          {/* Asset Names Written Out in Full Side-by-Side on the Right */}
+          <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 max-h-64 overflow-y-auto pr-2">
+            {pieData.map((item, idx) => (
+              <div key={item.name} className="flex items-center justify-between text-xs font-bold p-2 rounded-xl bg-white/60 border border-[#11310C]/05">
+                <div className="flex items-center gap-2.5 min-w-0 pr-2">
                   <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    className="w-3 h-3 rounded-full flex-shrink-0"
                     style={{ backgroundColor: COLORS[idx % COLORS.length] }}
                   />
-                  <span className="text-[#11310C] truncate">{item.name}</span>
+                  <span className="text-[#11310C] font-extrabold truncate" title={item.name}>
+                    {item.name}
+                  </span>
                 </div>
-                <span className="text-[#11310C] flex-shrink-0 ml-2">
+                <span className="text-[#11310C] font-mono font-extrabold flex-shrink-0 bg-[#11310C]/5 px-2 py-0.5 rounded-lg">
                   {totalCurrentValue > 0 ? ((item.value / totalCurrentValue) * 100).toFixed(1) : 0}%
                 </span>
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Investment List Table (2 Cols) */}
-        <div className="lg:col-span-2 glass-card rounded-3xl p-6 border border-white/90 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#11310C]/10">
-            <div>
-              <h3 className="text-lg font-extrabold text-[#11310C]">
-                Ativos em <span className="font-serif italic font-bold text-xl text-[#C4C240]">Carteira</span>
-              </h3>
-              <p className="text-xs text-[#11310C]/60">Sincronizado em R$ (BRL) e $ (USD)</p>
-            </div>
-            <span className="text-xs font-extrabold text-[#11310C] bg-[#11310C]/5 px-3 py-1 rounded-full border border-[#11310C]/10">
-              {safeInvestments.length} Ativos Ativos
-            </span>
-          </div>
-
-          {safeInvestments.length === 0 ? (
-            <div className="p-8 text-center space-y-3 bg-white/60 rounded-2xl border border-[#11310C]/10">
-              <Building2 className="w-8 h-8 text-[#11310C]/40 mx-auto" />
-              <h4 className="font-extrabold text-sm text-[#11310C]">Nenhum Ativo Carregado</h4>
-              <p className="text-xs text-[#11310C]/60 max-w-md mx-auto font-medium">
-                Sua planilha de investimentos no Google Sheets é privada ou ainda não respondeu à conexão. Na aba <strong>Configurações</strong>, faça login com a conta Google dona da planilha para liberar a sincronização em tempo real.
-              </p>
-            </div>
-          ) : (
-            /* Table with all 10 columns */
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-[#11310C]">
-                <thead>
-                  <tr className="border-b border-[#11310C]/10 text-[10px] font-bold uppercase tracking-wider text-[#11310C]/60">
-                    <th className="pb-2">Ticker (Col A)</th>
-                    <th className="pb-2">Nome (Col B)</th>
-                    <th className="pb-2">Classe (Col C)</th>
-                    <th className="pb-2 text-right">Ações (Col D)</th>
-                    <th className="pb-2 text-right">P. Médio (Col E)</th>
-                    <th className="pb-2 text-right">P. Atual (Col F)</th>
-                    <th className="pb-2 text-right">Var $ (Col G)</th>
-                    <th className="pb-2 text-right">Var % (Col H)</th>
-                    <th className="pb-2 text-right">USD Aplicado (Col I)</th>
-                    <th className="pb-2 text-right">USD Atual (Col J)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#11310C]/5 font-semibold">
-                  {safeInvestments.map((inv) => {
-                    const isPositive = inv.usdChange >= 0;
-
-                    return (
-                      <tr key={inv.id} className="hover:bg-white/60 transition-all">
-                        <td className="py-3 font-mono font-extrabold text-[#11310C]">
-                          {inv.ticker}
-                        </td>
-                        <td className="py-3 font-bold text-[#11310C] max-w-[140px] truncate">
-                          {inv.name}
-                        </td>
-                        <td className="py-3 text-[10px]">
-                          <span className="px-2 py-0.5 rounded-full bg-[#11310C]/10 text-[#11310C] font-bold">
-                            {inv.assetClass || 'Ação'}
-                          </span>
-                        </td>
-                        <td className="py-3 text-right font-extrabold">
-                          {inv.sharesCount % 1 === 0 ? inv.sharesCount : parseFloat(inv.sharesCount.toFixed(5))}
-                        </td>
-                        <td className="py-3 text-right text-[#11310C]/80">
-                          ${inv.averagePrice.toFixed(2)}
-                        </td>
-                        <td className="py-3 text-right font-extrabold text-[#11310C]">
-                          ${inv.currentPrice.toFixed(2)}
-                        </td>
-                        <td className={`py-3 text-right font-extrabold ${isPositive ? 'text-emerald-800' : 'text-[#E13513]'}`}>
-                          {isPositive ? '+' : ''}${inv.usdChange.toFixed(2)}
-                        </td>
-                        <td className="py-3 text-right">
-                          <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                            isPositive ? 'bg-emerald-100 text-emerald-900' : 'bg-red-100 text-red-900'
-                          }`}>
-                            {isPositive ? '+' : ''}{inv.percentChange.toFixed(2)}%
-                          </span>
-                        </td>
-                        <td className="py-3 text-right text-[#11310C]/70">
-                          ${inv.usdApplied.toFixed(2)}
-                        </td>
-                        <td className="py-3 text-right font-extrabold text-emerald-900">
-                          ${inv.usdCurrent.toFixed(2)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       </div>
     </div>

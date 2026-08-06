@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Plus,
   FileSpreadsheet,
@@ -12,6 +12,7 @@ import {
   Target,
   ArrowUpRight,
   ArrowDownRight,
+  Check,
 } from 'lucide-react';
 import { TomatoIcon } from './TomatoIcon';
 import { Transaction, Investment, CreditCardSheet, Debtor } from '../types';
@@ -45,6 +46,18 @@ export const Header: React.FC<HeaderProps> = ({
   debtors = [],
 }) => {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isMonthOpen, setIsMonthOpen] = useState(false);
+  const monthDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (monthDropdownRef.current && !monthDropdownRef.current.contains(event.target as Node)) {
+        setIsMonthOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Search filtering across all data items
   const query = searchQuery.trim().toLowerCase();
@@ -206,23 +219,42 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Month Selector Pill */}
-          <div className="relative inline-block">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl glass-pill border border-[#11310C]/15 text-[#11310C] text-xs font-bold cursor-pointer hover:bg-white transition-all shadow-xs">
+          {/* Custom Styled Month Selector Pill */}
+          <div className="relative inline-block" ref={monthDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsMonthOpen(!isMonthOpen)}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/90 hover:bg-white border border-[#11310C]/15 text-[#11310C] text-xs font-extrabold cursor-pointer transition-all shadow-xs"
+            >
               <Calendar className="w-3.5 h-3.5 text-[#C4C240]" />
-              <select
-                value={selectedMonth}
-                onChange={(e) => onMonthChange(e.target.value)}
-                className="bg-transparent appearance-none pr-4 font-semibold text-xs text-[#11310C] focus:outline-none cursor-pointer"
-              >
-                {monthsList.map((m) => (
-                  <option key={m} value={m} className="bg-white text-[#11310C]">
-                    {m}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-3 h-3 text-[#11310C]/60 pointer-events-none absolute right-2.5" />
-            </div>
+              <span>{selectedMonth}</span>
+              <ChevronDown className={`w-3.5 h-3.5 text-[#11310C]/60 transition-transform duration-200 ${isMonthOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isMonthOpen && (
+              <div className="absolute top-full right-0 mt-2 w-44 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#11310C]/15 shadow-2xl p-1.5 z-50 space-y-0.5 animate-in fade-in zoom-in-95">
+                {monthsList.map((m) => {
+                  const isSelected = m === selectedMonth;
+                  return (
+                    <button
+                      key={m}
+                      onClick={() => {
+                        onMonthChange(m);
+                        setIsMonthOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#11310C] text-[#FAFBF6]'
+                          : 'text-[#11310C] hover:bg-[#F8F9F3]'
+                      }`}
+                    >
+                      <span>{m}</span>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-[#C4C240]" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Quick Settings Icon */}

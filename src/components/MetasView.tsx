@@ -125,13 +125,6 @@ export const MetasView: React.FC<MetasViewProps> = ({
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card rounded-3xl p-6 border border-white/90">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#11310C]/60">
-              Planejamento de Futuro
-            </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#C4C240]" />
-            <span className="text-xs font-bold text-[#11310C]">Projeções Inteligentes</span>
-          </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
             Minhas <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#C4C240]">Metas</span> & Inteligência Artificial
           </h1>

@@ -30,6 +30,7 @@ export interface CreditCardSheet {
   currentInvoice: number; // Dynamic sum from Extrato for this card
   limit: number;
   status?: 'aberta' | 'fechada';
+  isPaid?: boolean;
 }
 
 export interface Subscription {
@@ -92,6 +93,19 @@ export interface AccountBalanceRow {
   balances: Record<string, number>; // Month name e.g. "Maio 2026": 8036.06
 }
 
+export interface AccountColumnMeta {
+  name: string;
+  ratePct: number; // e.g. 0, 100, 121, 102, 105, 120
+}
+
+export interface AccountMonthRow {
+  date: string;
+  monthLabel: string; // e.g. "Maio 2026"
+  balances: Record<string, number>;
+  total: number;
+  isProjected: boolean;
+}
+
 export interface MonthSummaryData {
   month: string; // e.g. "Agosto 2026"
   totalMoney: number; // Total de dinheiro no mês de todas as contas
@@ -103,6 +117,8 @@ export interface MonthSummaryData {
   activeSubscriptionsCount: number;
   monthlyGrowthPercent: number;
   accountBalances?: Record<string, number>; // Breakdown per account for this month
+  accountDetailsRows?: AccountMonthRow[];
+  accountColumnsMeta?: AccountColumnMeta[];
 }
 
 export interface AIRecommendation {

@@ -49,7 +49,7 @@ export const SHEETS_CONFIG = [
     id: 'sheet-totais',
     type: 'total_mes',
     title: 'Total Mensal do Saldo das Contas',
-    url: 'https://docs.google.com/spreadsheets/d/1Y2hEw_g4tPKK9dWP5LDgTqKzsExSAZcoQ5ZvZunP9x4/export?format=csv&gid=0',
+    url: 'https://docs.google.com/spreadsheets/d/1Y2hEw_g4tPKK9dWP5LDgTqKzsExSAZcoQ5ZvZunP9x4/export?format=csv&gid=1828466385',
   },
   {
     id: 'sheet-devedores',
@@ -494,43 +494,167 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
 
         if (sheet.id === 'sheet-totais') {
           const headers = rows[0] || [];
-          const rawMonths = headers.slice(1).filter((h) => h && !h.toLowerCase().includes('meta'));
+          const isRowPerMonth = (headers[0] || '').toLowerCase().includes('data') || (headers[1] || '').toLowerCase().includes('mês') || (headers[1] || '').toLowerCase().includes('mes');
 
-          const accountRows: any[] = [];
-          const totalsRowMap: Record<string, number> = {};
+          if (isRowPerMonth) {
+            // New Resumo Total sheet format (Row per Month)
+            const accountCols = headers.slice(2).map((h, i) => {
+              const name = h.trim();
+              let ratePct = 0;
+              const match = name.match(/\((\d+)%\)/);
+              if (match) {
+                ratePct = parseFloat(match[1]);
+              }
+              return { index: i + 2, name, ratePct };
+            });
 
-          dataRows.forEach((cols) => {
-            const accountName = (cols[0] || '').trim();
-            if (!accountName || accountName.toLowerCase() === 'data') return;
+            const MONTH_NAMES_PT = [
+              'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+              'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+            ];
 
-            if (accountName.toLowerCase().startsWith('total')) {
-              rawMonths.forEach((mName, idx) => {
-                const valStr = cols[idx + 1] || '0';
-                const parsedVal = parseCleanNumber(valStr);
-                if (parsedVal > 0) {
-                  totalsRowMap[mName] = parsedVal;
-                }
+            const monthNameToIdx: Record<string, number> = {
+              'janeiro': 0, 'fevereiro': 1, 'março': 2, 'marco': 2, 'abril': 3,
+              'maio': 4, 'junho': 5, 'julho': 6, 'agosto': 7, 'setembro': 8,
+              'outubro': 9, 'novembro': 10, 'dezembro': 11
+            };
+
+            const actualRows: any[] = [];
+            const totalsRowMap: Record<string, number> = {};
+            let lastRecordedMonthIdx = 7; // default August
+            let lastRecordedYear = 2026;
+            let lastBalances: Record<string, number> = {};
+
+            dataRows.forEach((cols) => {
+              if (cols.length < 2 || !cols[0]) return;
+              const rawDate = cols[0].trim();
+              const rawMonthName = (cols[1] || '').trim().toLowerCase();
+              if (!rawMonthName || rawMonthName === 'mês' || rawMonthName === 'mes') return;
+
+              let yearStr = '2026';
+              if (rawDate.includes('/')) {
+                const parts = rawDate.split('/');
+                if (parts.length === 3) yearStr = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+              }
+              const yrNum = parseInt(yearStr, 10) || 2026;
+
+              const mIdx = monthNameToIdx[rawMonthName] !== undefined ? monthNameToIdx[rawMonthName] : 7;
+              const capMonth = MONTH_NAMES_PT[mIdx] || 'Agosto';
+              const monthLabel = `${capMonth} ${yrNum}`;
+
+              const balances: Record<string, number> = {};
+              let rowTotal = 0;
+
+              accountCols.forEach((col) => {
+                const val = parseCleanNumber(cols[col.index] || '0');
+                balances[col.name] = val;
+                rowTotal += val;
               });
-              return;
+
+              if (rowTotal > 0) {
+                totalsRowMap[monthLabel] = rowTotal;
+                actualRows.push({
+                  date: rawDate,
+                  monthLabel,
+                  rawMonthName,
+                  balances,
+                  total: rowTotal,
+                  isProjected: false,
+                });
+                lastRecordedMonthIdx = mIdx;
+                lastRecordedYear = yrNum;
+                lastBalances = balances;
+              }
+            });
+
+            // Project 8 future months from the last recorded month
+            const projectedRows: any[] = [];
+            let currentBalances = { ...lastBalances };
+
+            for (let i = 1; i <= 8; i++) {
+              let nextMonthIdx = lastRecordedMonthIdx + i;
+              let yr = lastRecordedYear + Math.floor(nextMonthIdx / 12);
+              let mIdx = nextMonthIdx % 12;
+              let monthLabel = `${MONTH_NAMES_PT[mIdx]} ${yr}`;
+
+              const nextBalances: Record<string, number> = {};
+              let nextTotal = 0;
+
+              accountCols.forEach((col) => {
+                const prevVal = currentBalances[col.name] || 0;
+                let multiplier = 1;
+                if (col.ratePct > 0) {
+                  // Monthly CDI benchmark ~0.85% (100% CDI)
+                  multiplier = 1 + (0.0085 * (col.ratePct / 100));
+                }
+                const newB = prevVal * multiplier;
+                nextBalances[col.name] = Math.round(newB * 100) / 100;
+                nextTotal += nextBalances[col.name];
+              });
+
+              currentBalances = nextBalances;
+              totalsRowMap[monthLabel] = Math.round(nextTotal * 100) / 100;
+
+              projectedRows.push({
+                date: `01/${(mIdx + 1).toString().padStart(2, '0')}/${yr}`,
+                monthLabel,
+                rawMonthName: MONTH_NAMES_PT[mIdx].toLowerCase(),
+                balances: nextBalances,
+                total: Math.round(nextTotal * 100) / 100,
+                isProjected: true,
+              });
             }
 
-            const balances: Record<string, number> = {};
-            rawMonths.forEach((mName, idx) => {
-              const valStr = cols[idx + 1] || '0';
-              balances[mName] = parseCleanNumber(valStr);
+            const allAccountRows = [...actualRows, ...projectedRows];
+
+            parsedTotaisMatrix = {
+              isNewFormat: true,
+              accountCols,
+              actualRows,
+              projectedRows,
+              allRows: allAccountRows,
+              months: allAccountRows.map((r) => r.monthLabel),
+              totalsRowMap,
+            };
+          } else {
+            // Legacy column format fallback
+            const rawMonths = headers.slice(1).filter((h) => h && !h.toLowerCase().includes('meta'));
+            const accountRows: any[] = [];
+            const totalsRowMap: Record<string, number> = {};
+
+            dataRows.forEach((cols) => {
+              const accountName = (cols[0] || '').trim();
+              if (!accountName || accountName.toLowerCase() === 'data') return;
+
+              if (accountName.toLowerCase().startsWith('total')) {
+                rawMonths.forEach((mName, idx) => {
+                  const valStr = cols[idx + 1] || '0';
+                  const parsedVal = parseCleanNumber(valStr);
+                  if (parsedVal > 0) {
+                    totalsRowMap[mName] = parsedVal;
+                  }
+                });
+                return;
+              }
+
+              const balances: Record<string, number> = {};
+              rawMonths.forEach((mName, idx) => {
+                const valStr = cols[idx + 1] || '0';
+                balances[mName] = parseCleanNumber(valStr);
+              });
+
+              accountRows.push({
+                accountName,
+                balances,
+              });
             });
 
-            accountRows.push({
-              accountName,
-              balances,
-            });
-          });
-
-          parsedTotaisMatrix = {
-            months: rawMonths,
-            accounts: accountRows,
-            totalsRowMap,
-          };
+            parsedTotaisMatrix = {
+              months: rawMonths,
+              accounts: accountRows,
+              totalsRowMap,
+            };
+          }
         }
 
         if (sheet.id === 'sheet-devedores') {

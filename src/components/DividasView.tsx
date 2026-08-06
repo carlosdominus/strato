@@ -55,13 +55,6 @@ export const DividasView: React.FC<DividasViewProps> = ({
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card rounded-3xl p-6 border border-white/90">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#11310C]/60">
-              Gestão de Devedores & Créditos a Receber
-            </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#C4C240]" />
-            <span className="text-xs font-bold text-[#11310C]">Controle Ativo</span>
-          </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
             Meus <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#C4C240]">Devedores</span> & Empréstimos Concedidos
           </h1>
@@ -143,7 +136,6 @@ export const DividasView: React.FC<DividasViewProps> = ({
               <h3 className="text-lg font-extrabold text-[#11310C]">
                 Resumo de Contas por <span className="font-serif italic font-bold text-xl text-[#C4C240]">Devedor</span>
               </h3>
-              <p className="text-xs text-[#11310C]/60">Cálculo de (Total Pegou - Total Pagou = Falta Pagar) por pessoa</p>
             </div>
             <span className="text-xs font-extrabold text-[#11310C] bg-[#11310C]/5 px-2.5 py-1 rounded-full">
               {debtorGroups.length} pessoas
@@ -220,9 +212,8 @@ export const DividasView: React.FC<DividasViewProps> = ({
         <div className="flex items-center justify-between pb-3 border-b border-[#11310C]/10">
           <div>
             <h3 className="text-lg font-extrabold text-[#11310C]">
-              Lançamentos Individuais na <span className="font-serif italic font-bold text-xl text-[#C4C240]">Planilha de Devedores</span>
+              Lançamentos Individuais de <span className="font-serif italic font-bold text-xl text-[#C4C240]">Devedores</span>
             </h3>
-            <p className="text-xs text-[#11310C]/60">Sincronizado das colunas Devedor (Col A), Descrição (Col B), Valor (Col C) e Status (Col D)</p>
           </div>
           <span className="text-xs font-extrabold text-emerald-900 bg-emerald-100 px-3 py-1 rounded-full">
             {debtors.length} registros no total
@@ -243,10 +234,10 @@ export const DividasView: React.FC<DividasViewProps> = ({
               <thead>
                 <tr className="border-b border-[#11310C]/10 text-[11px] font-extrabold text-[#11310C]/60 uppercase tracking-wider">
                   <th className="py-3 px-3">#</th>
-                  <th className="py-3 px-3">Devedor (Col A)</th>
-                  <th className="py-3 px-3">Descrição (Col B)</th>
-                  <th className="py-3 px-3 text-right">Valor (Col C)</th>
-                  <th className="py-3 px-3 text-center">Movimento / Status (Col D)</th>
+                  <th className="py-3 px-3">Devedor</th>
+                  <th className="py-3 px-3">Descrição</th>
+                  <th className="py-3 px-3 text-right">Valor</th>
+                  <th className="py-3 px-3 text-center">Movimento / Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#11310C]/5 font-semibold text-xs">

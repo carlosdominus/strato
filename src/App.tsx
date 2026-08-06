@@ -157,7 +157,7 @@ export function App() {
         }
 
         if (data.totaisMatrix && data.totaisMatrix.months && Array.isArray(data.totaisMatrix.months)) {
-          const { months, accounts, totalsRowMap } = data.totaisMatrix;
+          const { months, accounts, totalsRowMap, isNewFormat, accountCols, allRows } = data.totaisMatrix;
           const activeTxs = (data.transactions && Array.isArray(data.transactions)) ? data.transactions : transactions;
 
           const monthNumMap: Record<string, string> = {
@@ -178,48 +178,79 @@ export function App() {
 
           const newMonthsData: Record<string, MonthSummaryData> = {};
 
-          months.forEach((mRaw: string) => {
-            if (!mRaw) return;
-            const lowerRaw = mRaw.trim().toLowerCase();
-            const capRaw = lowerRaw.charAt(0).toUpperCase() + lowerRaw.slice(1);
-            const mKey = capRaw.includes('202') ? capRaw : `${capRaw} 2026`;
+          if (isNewFormat && Array.isArray(allRows)) {
+            allRows.forEach((r: any) => {
+              const mKey = r.monthLabel;
+              let monthIncome = 0;
+              let monthExpenses = 0;
 
-            let totalMoney = totalsRowMap ? totalsRowMap[mRaw] || 0 : 0;
-            if (!totalMoney && accounts) {
-              accounts.forEach((acc: any) => {
-                totalMoney += (acc.balances && acc.balances[mRaw]) ? acc.balances[mRaw] : 0;
-              });
-            }
+              if (activeTxs) {
+                activeTxs.forEach((tx: Transaction) => {
+                  const allocatedMonth = getTransactionAllocatedMonthLabel(tx);
+                  if (allocatedMonth === mKey) {
+                    if (tx.type === 'income') monthIncome += tx.amount;
+                    else if (tx.type === 'expense') monthExpenses += tx.amount;
+                  }
+                });
+              }
 
-            // Skip future months without total money recorded
-            if (totalMoney <= 0) return;
+              newMonthsData[mKey] = {
+                month: mKey,
+                totalMoney: r.total || 0,
+                totalIncome: monthIncome,
+                totalExpenses: monthExpenses,
+                leftover: monthIncome - monthExpenses,
+                monthlyGrowthPercent: 0,
+                totalInvestments: calcTotalInvestments,
+                totalDebts: calcTotalDebts,
+                activeSubscriptionsCount: calcSubscriptionsCount,
+                accountDetailsRows: allRows,
+                accountColumnsMeta: accountCols,
+                accountBalances: r.balances,
+              };
+            });
+          } else {
+            months.forEach((mRaw: string) => {
+              if (!mRaw) return;
+              const lowerRaw = mRaw.trim().toLowerCase();
+              const capRaw = lowerRaw.charAt(0).toUpperCase() + lowerRaw.slice(1);
+              const mKey = capRaw.includes('202') ? capRaw : `${capRaw} 2026`;
 
-            const monthNum = monthNumMap[lowerRaw];
-            let monthIncome = 0;
-            let monthExpenses = 0;
+              let totalMoney = totalsRowMap ? totalsRowMap[mRaw] || 0 : 0;
+              if (!totalMoney && accounts) {
+                accounts.forEach((acc: any) => {
+                  totalMoney += (acc.balances && acc.balances[mRaw]) ? acc.balances[mRaw] : 0;
+                });
+              }
 
-            if (activeTxs) {
-              activeTxs.forEach((tx: Transaction) => {
-                const allocatedMonth = getTransactionAllocatedMonthLabel(tx);
-                if (allocatedMonth === mKey) {
-                  if (tx.type === 'income') monthIncome += tx.amount;
-                  else if (tx.type === 'expense') monthExpenses += tx.amount;
-                }
-              });
-            }
+              if (totalMoney <= 0) return;
 
-            newMonthsData[mKey] = {
-              month: mKey,
-              totalMoney: totalMoney || 0,
-              totalIncome: monthIncome,
-              totalExpenses: monthExpenses,
-              leftover: monthIncome - monthExpenses,
-              monthlyGrowthPercent: 0,
-              totalInvestments: calcTotalInvestments,
-              totalDebts: calcTotalDebts,
-              activeSubscriptionsCount: calcSubscriptionsCount,
-            };
-          });
+              let monthIncome = 0;
+              let monthExpenses = 0;
+
+              if (activeTxs) {
+                activeTxs.forEach((tx: Transaction) => {
+                  const allocatedMonth = getTransactionAllocatedMonthLabel(tx);
+                  if (allocatedMonth === mKey) {
+                    if (tx.type === 'income') monthIncome += tx.amount;
+                    else if (tx.type === 'expense') monthExpenses += tx.amount;
+                  }
+                });
+              }
+
+              newMonthsData[mKey] = {
+                month: mKey,
+                totalMoney: totalMoney || 0,
+                totalIncome: monthIncome,
+                totalExpenses: monthExpenses,
+                leftover: monthIncome - monthExpenses,
+                monthlyGrowthPercent: 0,
+                totalInvestments: calcTotalInvestments,
+                totalDebts: calcTotalDebts,
+                activeSubscriptionsCount: calcSubscriptionsCount,
+              };
+            });
+          }
 
           // Calculate sequential growth percentage
           const mKeys = Object.keys(newMonthsData);
@@ -377,6 +408,35 @@ export function App() {
     });
   };
 
+  const handleUpdateCardLimit = (cardId: string, newLimit: number) => {
+    setCreditCards((prevCards) =>
+      prevCards.map((card) =>
+        card.id === cardId ? { ...card, limit: newLimit } : card
+      )
+    );
+  };
+
+  const handleToggleCardPaid = (cardId: string) => {
+    setCreditCards((prevCards) =>
+      prevCards.map((card) =>
+        card.id === cardId ? { ...card, isPaid: !card.isPaid } : card
+      )
+    );
+  };
+
+  const handleToggleSubscriptionStatus = (subId: string) => {
+    setSubscriptions((prevSubs) =>
+      prevSubs.map((sub) => {
+        if (sub.id === subId) {
+          const isAct = sub.status === 'ativa' || sub.active;
+          const nextStatus = isAct ? 'pausada' : 'ativa';
+          return { ...sub, status: nextStatus, active: !isAct };
+        }
+        return sub;
+      })
+    );
+  };
+
   const handleAddSpreadsheet = (sheet: SpreadsheetConnection) => {
     setSpreadsheets((prev) => [sheet, ...prev]);
   };
@@ -449,6 +509,9 @@ export function App() {
             creditCards={creditCards}
             subscriptions={subscriptions}
             onOpenManualModal={() => setIsManualModalOpen(true)}
+            onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
+            onUpdateCardLimit={handleUpdateCardLimit}
+            onToggleCardPaid={handleToggleCardPaid}
           />
         )}
 
