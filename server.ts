@@ -251,17 +251,30 @@ async function startServer() {
             }
 
             if (sheet.id === 'sheet-totais') {
-              // Parse Header row for Months
-              const headers = rows[0];
-              const months = headers.slice(1).filter(h => h && !h.toLowerCase().includes('meta'));
+              // Parse Header row for Months (e.g. Contas | Maio | Junho | julho | agosto ...)
+              const headers = rows[0] || [];
+              const rawMonths = headers.slice(1).filter(h => h && !h.toLowerCase().includes('meta'));
               
               const accountRows: any[] = [];
+              const totalsRowMap: Record<string, number> = {};
+
               dataRows.forEach((cols) => {
-                const accountName = cols[0];
-                if (!accountName || accountName.toLowerCase() === 'data' || accountName.toLowerCase() === 'total') return;
+                const accountName = (cols[0] || '').trim();
+                if (!accountName || accountName.toLowerCase() === 'data') return;
+
+                if (accountName.toLowerCase().startsWith('total')) {
+                  rawMonths.forEach((mName, idx) => {
+                    const valStr = cols[idx + 1] || '0';
+                    const parsedVal = parseCleanNumber(valStr);
+                    if (parsedVal > 0) {
+                      totalsRowMap[mName] = parsedVal;
+                    }
+                  });
+                  return;
+                }
 
                 const balances: Record<string, number> = {};
-                months.forEach((mName, idx) => {
+                rawMonths.forEach((mName, idx) => {
                   const valStr = cols[idx + 1] || '0';
                   balances[mName] = parseCleanNumber(valStr);
                 });
@@ -269,38 +282,59 @@ async function startServer() {
                 accountRows.push({ accountName, balances });
               });
 
-              parsedTotaisMatrix = { months, accounts: accountRows };
+              parsedTotaisMatrix = { months: rawMonths, accounts: accountRows, totalsRowMap };
             }
 
             if (sheet.id === 'sheet-devedores') {
+              let overallPagouPlus = 0;
+              let overallPegouMinus = 0;
+              let overallRestante = 0;
+
               dataRows.forEach((cols, index) => {
-                if (!cols[1]) return;
-                const borrowerName = cols[1];
+                const borrowerName = (cols[1] || '').trim();
+                if (!borrowerName || borrowerName.toLowerCase() === 'devedor') return;
+
                 const description = cols[2] || '';
                 const transactionAmount = parseCleanNumber(cols[3]);
-                const movement = cols[4] || 'emprestado';
-                const totalPaid = parseCleanNumber(cols[6]);
-                const totalBorrowed = parseCleanNumber(cols[7]);
-                const remainingAmount = parseCleanNumber(cols[8]);
+                const statusTag = (cols[4] || '').trim().toLowerCase(); // 'pegou' or 'pagou'
+
+                if (cols[6]) {
+                  const pPlus = parseCleanNumber(cols[6]);
+                  if (pPlus > 0) overallPagouPlus = pPlus;
+                }
+                if (cols[7]) {
+                  const pMinus = parseCleanNumber(cols[7]);
+                  if (pMinus > 0) overallPegouMinus = pMinus;
+                }
+                if (cols[8]) {
+                  const rVal = parseCleanNumber(cols[8]);
+                  if (rVal > 0) overallRestante = rVal;
+                }
+
+                const isPaid = statusTag.includes('pagou');
 
                 parsedDebtors.push({
                   id: `debtor-sheet-${index}`,
                   borrowerName,
                   description,
                   transactionAmount,
-                  movement,
-                  totalPaid,
-                  totalBorrowed,
-                  remainingAmount: remainingAmount || Math.max(0, totalBorrowed - totalPaid),
-                  status: remainingAmount <= 0 ? 'quitado' : totalPaid > 0 ? 'parcial' : 'pendente'
+                  movement: isPaid ? 'pagou' : 'pegou',
+                  totalPaid: isPaid ? transactionAmount : 0,
+                  totalBorrowed: transactionAmount,
+                  remainingAmount: isPaid ? 0 : transactionAmount,
+                  status: isPaid ? 'quitado' : 'pendente'
                 });
               });
             }
 
             if (sheet.id === 'sheet-investimentos') {
+              const usdRateCommercial = 5.14; // Rate: R$ 5.14 / USD
+              const repatriationFeePercent = 1.8; // Avenue spread (~1.4%) + IOF repatriação (0.38%)
+              const netUsdRate = usdRateCommercial * (1 - repatriationFeePercent / 100); // ~5.0475 BRL/USD
+
               dataRows.forEach((cols, index) => {
                 if (!cols[0] || cols[0].toUpperCase() === 'TIKET' || cols[0].toUpperCase() === 'TICKER') return;
-                const ticker = cols[0];
+                const ticker = cols[0].trim();
                 const companyName = cols[1] || ticker;
                 const assetClass = cols[2] || 'Ações EUA';
                 const sharesCount = parseCleanNumber(cols[3]);
@@ -311,8 +345,11 @@ async function startServer() {
                 const usdApplied = parseCleanNumber(cols[8]);
                 const usdCurrent = parseCleanNumber(cols[9]);
 
-                const amountInvestedBRL = Math.round((usdApplied || (sharesCount * averagePrice)) * 5.60);
-                const currentValueBRL = Math.round((usdCurrent || (sharesCount * currentPrice)) * 5.60);
+                // Filter out zero assets as requested
+                if (sharesCount <= 0 || (usdCurrent <= 0 && currentPrice <= 0)) return;
+
+                const amountInvestedBRL = Math.round((usdApplied || (sharesCount * averagePrice)) * netUsdRate);
+                const currentValueBRL = Math.round((usdCurrent || (sharesCount * currentPrice)) * netUsdRate);
 
                 parsedInvestments.push({
                   id: `inv-sheet-${index}`,
@@ -373,7 +410,9 @@ async function startServer() {
           totalExpenses: liveTotalExpenses,
           leftover: liveTotalIncome - liveTotalExpenses,
         } : undefined,
-        usdRate: 5.60,
+        usdRate: 5.14,
+        repatriationFeePercent: 1.8,
+        netUsdRate: 5.0475,
       });
     } catch (err: any) {
       console.error('Error fetching sheets:', err);

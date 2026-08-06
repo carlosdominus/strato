@@ -121,56 +121,64 @@ export const DividasView: React.FC<DividasViewProps> = ({
           </div>
 
           <div className="space-y-3">
-            {debts.map((debt) => {
-              const paidAmount = debt.totalAmount - debt.remainingAmount;
-              const progressPercent = Math.round((paidAmount / debt.totalAmount) * 100);
+            {debts.length === 0 ? (
+              <div className="p-6 text-center space-y-2 rounded-2xl bg-white/60 border border-[#11310C]/10">
+                <CheckCircle2 className="w-8 h-8 text-emerald-700 mx-auto" />
+                <h4 className="font-extrabold text-sm text-[#11310C]">Nenhuma Dívida Cadastrada</h4>
+                <p className="text-xs text-[#11310C]/60 font-medium">Você não possui financiamentos ou dívidas ativas.</p>
+              </div>
+            ) : (
+              debts.map((debt) => {
+                const paidAmount = debt.totalAmount - debt.remainingAmount;
+                const progressPercent = Math.round((paidAmount / debt.totalAmount) * 100);
 
-              return (
-                <div
-                  key={debt.id}
-                  className="p-4 rounded-2xl bg-white/90 border border-[#11310C]/10 space-y-2.5 shadow-xs hover:border-[#E13513]/40 transition-all"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-extrabold text-sm text-[#11310C]">{debt.creditor}</h4>
-                      <p className="text-xs text-[#11310C]/60 font-medium">
-                        {debt.type} • Juros: {debt.interestRate}
-                      </p>
+                return (
+                  <div
+                    key={debt.id}
+                    className="p-4 rounded-2xl bg-white/90 border border-[#11310C]/10 space-y-2.5 shadow-xs hover:border-[#E13513]/40 transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-extrabold text-sm text-[#11310C]">{debt.creditor}</h4>
+                        <p className="text-xs text-[#11310C]/60 font-medium">
+                          {debt.type} • Juros: {debt.interestRate}
+                        </p>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold text-[#11310C]/50 uppercase block">
+                          Saldo Restante
+                        </span>
+                        <span className="text-sm font-extrabold text-[#E13513]">
+                          {formatCurrency(debt.remainingAmount)}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="text-right">
-                      <span className="text-[10px] font-bold text-[#11310C]/50 uppercase block">
-                        Saldo Restante
+                    {/* Progress bar */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] font-bold text-[#11310C]/70">
+                        <span>Progresso ({progressPercent}% pago)</span>
+                        <span>Total: {formatCurrency(debt.totalAmount)}</span>
+                      </div>
+                      <div className="w-full bg-[#11310C]/10 h-2.5 rounded-full overflow-hidden">
+                        <div
+                          className="bg-[#11310C] h-full rounded-full transition-all duration-500"
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs font-bold pt-1 border-t border-[#11310C]/10">
+                      <span className="text-[#11310C]">
+                        Parcela: <span className="font-extrabold">{formatCurrency(debt.monthlyPayment)}</span>
                       </span>
-                      <span className="text-sm font-extrabold text-[#E13513]">
-                        {formatCurrency(debt.remainingAmount)}
-                      </span>
+                      <span className="text-[#11310C]/70 text-[11px]">{debt.dueDate}</span>
                     </div>
                   </div>
-
-                  {/* Progress bar */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[11px] font-bold text-[#11310C]/70">
-                      <span>Progresso ({progressPercent}% pago)</span>
-                      <span>Total: {formatCurrency(debt.totalAmount)}</span>
-                    </div>
-                    <div className="w-full bg-[#11310C]/10 h-2.5 rounded-full overflow-hidden">
-                      <div
-                        className="bg-[#11310C] h-full rounded-full transition-all duration-500"
-                        style={{ width: `${progressPercent}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs font-bold pt-1 border-t border-[#11310C]/10">
-                    <span className="text-[#11310C]">
-                      Parcela: <span className="font-extrabold">{formatCurrency(debt.monthlyPayment)}</span>
-                    </span>
-                    <span className="text-[#11310C]/70 text-[11px]">{debt.dueDate}</span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -181,7 +189,7 @@ export const DividasView: React.FC<DividasViewProps> = ({
               <h3 className="text-lg font-extrabold text-[#11310C]">
                 Planilha de <span className="font-serif italic font-bold text-xl text-[#C4C240]">Devedores</span>
               </h3>
-              <p className="text-xs text-[#11310C]/60">Sincronizado com colunas B, C, D, E, G, H, I da planilha de devedores</p>
+              <p className="text-xs text-[#11310C]/60">Sincronizado com colunas da planilha de devedores</p>
             </div>
             <span className="text-xs font-extrabold text-emerald-900 bg-emerald-100 px-2.5 py-1 rounded-full">
               {debtors.length} registros
@@ -189,7 +197,16 @@ export const DividasView: React.FC<DividasViewProps> = ({
           </div>
 
           <div className="space-y-3">
-            {debtors.map((debtor) => {
+            {debtors.length === 0 ? (
+              <div className="p-6 text-center space-y-2 rounded-2xl bg-white/60 border border-[#11310C]/10">
+                <Users className="w-8 h-8 text-[#11310C]/40 mx-auto" />
+                <h4 className="font-extrabold text-sm text-[#11310C]">Planilha de Devedores Privada ou Sem Registros</h4>
+                <p className="text-xs text-[#11310C]/60 font-medium max-w-sm mx-auto">
+                  A planilha de devedores requer autorização no Google Sheets para leitura ou não possui registros ativos.
+                </p>
+              </div>
+            ) : (
+              debtors.map((debtor) => {
               const isPaid = debtor.remainingAmount <= 0;
               const isPartial = debtor.totalPaid > 0 && debtor.remainingAmount > 0;
 
@@ -240,7 +257,8 @@ export const DividasView: React.FC<DividasViewProps> = ({
                   </div>
                 </div>
               );
-            })}
+            })
+          )}
           </div>
         </div>
       </div>

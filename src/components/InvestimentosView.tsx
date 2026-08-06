@@ -47,20 +47,62 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
   investments,
   onOpenManualModal,
 }) => {
-  const totalInvested = investments.reduce((acc, item) => acc + item.amountInvested, 0);
-  const totalCurrentValue = investments.reduce((acc, item) => acc + item.currentValue, 0);
+  const usdExchangeRateCommercial = 5.14; // Commercial USD/BRL
+  const avenueRepatriationFeePercent = 1.8; // ~1.4% spread + 0.38% IOF
+  const netUsdRateAvenue = usdExchangeRateCommercial * (1 - avenueRepatriationFeePercent / 100); // ~5.0475 BRL/USD
+
+  // Safe property extraction helper and filter zero assets as requested by user
+  const safeInvestments = (investments || [])
+    .filter((inv) => {
+      const shares = inv.sharesCount || 0;
+      const usdCur = inv.usdCurrent ?? (inv as any).dollarsCurrent ?? 0;
+      const currVal = inv.currentValue || 0;
+      return shares > 0 && (usdCur > 0 || currVal > 0);
+    })
+    .map((inv) => {
+      const sharesCount = inv.sharesCount || 0;
+      const averagePrice = inv.averagePrice ?? (inv as any).avgPrice ?? 0;
+      const currentPrice = inv.currentPrice ?? (inv.currentValue && sharesCount ? inv.currentValue / sharesCount / usdExchangeRateCommercial : 0);
+      const usdApplied = inv.usdApplied ?? (inv as any).dollarsApplied ?? (inv.amountInvested ? inv.amountInvested / usdExchangeRateCommercial : sharesCount * averagePrice);
+      const usdCurrent = inv.usdCurrent ?? (inv as any).dollarsCurrent ?? (inv.currentValue ? inv.currentValue / usdExchangeRateCommercial : sharesCount * currentPrice);
+      const usdChange = inv.usdChange ?? (inv as any).variationDollar ?? (usdCurrent - usdApplied);
+      const percentChange = inv.percentChange ?? (inv as any).variationPercent ?? (inv.yieldPercent || (usdApplied > 0 ? ((usdCurrent - usdApplied) / usdApplied) * 100 : 0));
+      const amountInvested = inv.amountInvested || Math.round(usdApplied * netUsdRateAvenue);
+      const currentValue = inv.currentValue || Math.round(usdCurrent * netUsdRateAvenue);
+      const monthlyDividend = inv.monthlyDividend || 0;
+
+      return {
+        ...inv,
+        ticker: inv.ticker || 'S/T',
+        name: inv.name || inv.companyName || inv.ticker || 'Ativo',
+        companyName: inv.companyName || inv.name || 'Empresa',
+        assetClass: inv.assetClass || 'Internacional',
+        sharesCount,
+        averagePrice,
+        currentPrice,
+        usdApplied,
+        usdCurrent,
+        usdChange,
+        percentChange,
+        amountInvested,
+        currentValue,
+        monthlyDividend,
+      };
+    });
+
+  const totalInvested = safeInvestments.reduce((acc, item) => acc + item.amountInvested, 0);
+  const totalCurrentValue = safeInvestments.reduce((acc, item) => acc + item.currentValue, 0);
   const totalProfit = totalCurrentValue - totalInvested;
   const overallYield = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
-  const totalMonthlyDividends = investments.reduce((acc, item) => acc + item.monthlyDividend, 0);
-
-  // International assets total in USD (approx rate 5.60 BRL / USD)
-  const usdExchangeRate = 5.60;
-  const totalUsdValue = totalCurrentValue / usdExchangeRate;
+  const totalMonthlyDividends = safeInvestments.reduce((acc, item) => acc + item.monthlyDividend, 0);
+  const totalUsdValue = safeInvestments.reduce((acc, item) => acc + item.usdCurrent, 0);
+  const totalBrlCommercial = totalUsdValue * usdExchangeRateCommercial;
+  const totalBrlAvenueNet = totalUsdValue * netUsdRateAvenue;
 
   // Pie chart data by individual asset
-  const pieData = investments.map((inv) => ({
+  const pieData = safeInvestments.map((inv) => ({
     name: inv.name,
-    value: inv.currentValue,
+    value: inv.currentValue || 1,
   }));
 
   return (
@@ -134,16 +176,19 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
 
         {/* Card 4: Posição Internacional em Dólar */}
         <div className="glass-card rounded-3xl p-5 border border-white/90 bg-gradient-to-br from-white via-white to-emerald-50/40">
-          <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider block mb-2 flex items-center justify-between">
+          <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider mb-2 flex items-center justify-between">
             <span>Posição em Dólares</span>
             <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">USD $</span>
           </span>
           <div className="text-2xl sm:text-3xl font-extrabold text-emerald-900">
             $ {totalUsdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <p className="text-[11px] font-medium text-[#11310C]/70 mt-2">
-            ~ {formatCurrency(totalUsdValue * usdExchangeRate)} (Câmbio: R$ {usdExchangeRate.toFixed(2)})
-          </p>
+          <div className="text-[11px] font-medium text-[#11310C]/80 mt-2 space-y-0.5">
+            <p><strong>Câmbio Comercial:</strong> R$ {usdExchangeRateCommercial.toFixed(2)} (Bruto: {formatCurrency(totalBrlCommercial)})</p>
+            <p className="text-emerald-800 font-bold">
+              <strong>Líquido Avenue (-1,8% IOF/Spread):</strong> {formatCurrency(totalBrlAvenueNet)}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -210,75 +255,85 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
               <p className="text-xs text-[#11310C]/60">Sincronizado em R$ (BRL) e $ (USD)</p>
             </div>
             <span className="text-xs font-extrabold text-[#11310C] bg-[#11310C]/5 px-3 py-1 rounded-full border border-[#11310C]/10">
-              {investments.length} Ativos Ativos
+              {safeInvestments.length} Ativos Ativos
             </span>
           </div>
 
-          {/* Table with all 10 columns */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-[#11310C]">
-              <thead>
-                <tr className="border-b border-[#11310C]/10 text-[10px] font-bold uppercase tracking-wider text-[#11310C]/60">
-                  <th className="pb-2">Ticker (Col A)</th>
-                  <th className="pb-2">Nome (Col B)</th>
-                  <th className="pb-2">Classe (Col C)</th>
-                  <th className="pb-2 text-right">Ações (Col D)</th>
-                  <th className="pb-2 text-right">P. Médio (Col E)</th>
-                  <th className="pb-2 text-right">P. Atual (Col F)</th>
-                  <th className="pb-2 text-right">Var $ (Col G)</th>
-                  <th className="pb-2 text-right">Var % (Col H)</th>
-                  <th className="pb-2 text-right">USD Aplicado (Col I)</th>
-                  <th className="pb-2 text-right">USD Atual (Col J)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#11310C]/5 font-semibold">
-                {investments.map((inv) => {
-                  const isPositive = inv.variationDollar >= 0;
+          {safeInvestments.length === 0 ? (
+            <div className="p-8 text-center space-y-3 bg-white/60 rounded-2xl border border-[#11310C]/10">
+              <Building2 className="w-8 h-8 text-[#11310C]/40 mx-auto" />
+              <h4 className="font-extrabold text-sm text-[#11310C]">Nenhum Ativo Carregado</h4>
+              <p className="text-xs text-[#11310C]/60 max-w-md mx-auto font-medium">
+                Sua planilha de investimentos no Google Sheets é privada ou ainda não respondeu à conexão. Na aba <strong>Configurações</strong>, faça login com a conta Google dona da planilha para liberar a sincronização em tempo real.
+              </p>
+            </div>
+          ) : (
+            /* Table with all 10 columns */
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-[#11310C]">
+                <thead>
+                  <tr className="border-b border-[#11310C]/10 text-[10px] font-bold uppercase tracking-wider text-[#11310C]/60">
+                    <th className="pb-2">Ticker (Col A)</th>
+                    <th className="pb-2">Nome (Col B)</th>
+                    <th className="pb-2">Classe (Col C)</th>
+                    <th className="pb-2 text-right">Ações (Col D)</th>
+                    <th className="pb-2 text-right">P. Médio (Col E)</th>
+                    <th className="pb-2 text-right">P. Atual (Col F)</th>
+                    <th className="pb-2 text-right">Var $ (Col G)</th>
+                    <th className="pb-2 text-right">Var % (Col H)</th>
+                    <th className="pb-2 text-right">USD Aplicado (Col I)</th>
+                    <th className="pb-2 text-right">USD Atual (Col J)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#11310C]/5 font-semibold">
+                  {safeInvestments.map((inv) => {
+                    const isPositive = inv.usdChange >= 0;
 
-                  return (
-                    <tr key={inv.id} className="hover:bg-white/60 transition-all">
-                      <td className="py-3 font-mono font-extrabold text-[#11310C]">
-                        {inv.ticker}
-                      </td>
-                      <td className="py-3 font-bold text-[#11310C] max-w-[140px] truncate">
-                        {inv.name}
-                      </td>
-                      <td className="py-3 text-[10px]">
-                        <span className="px-2 py-0.5 rounded-full bg-[#11310C]/10 text-[#11310C] font-bold">
-                          {inv.assetClass || 'Ação'}
-                        </span>
-                      </td>
-                      <td className="py-3 text-right font-extrabold">
-                        {inv.sharesCount}
-                      </td>
-                      <td className="py-3 text-right text-[#11310C]/80">
-                        ${inv.avgPrice.toFixed(2)}
-                      </td>
-                      <td className="py-3 text-right font-extrabold text-[#11310C]">
-                        ${inv.currentPrice.toFixed(2)}
-                      </td>
-                      <td className={`py-3 text-right font-extrabold ${isPositive ? 'text-emerald-800' : 'text-[#E13513]'}`}>
-                        {isPositive ? '+' : ''}${inv.variationDollar.toFixed(2)}
-                      </td>
-                      <td className="py-3 text-right">
-                        <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                          isPositive ? 'bg-emerald-100 text-emerald-900' : 'bg-red-100 text-red-900'
-                        }`}>
-                          {isPositive ? '+' : ''}{inv.variationPercent.toFixed(2)}%
-                        </span>
-                      </td>
-                      <td className="py-3 text-right text-[#11310C]/70">
-                        ${inv.dollarsApplied.toFixed(2)}
-                      </td>
-                      <td className="py-3 text-right font-extrabold text-emerald-900">
-                        ${inv.dollarsCurrent.toFixed(2)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    return (
+                      <tr key={inv.id} className="hover:bg-white/60 transition-all">
+                        <td className="py-3 font-mono font-extrabold text-[#11310C]">
+                          {inv.ticker}
+                        </td>
+                        <td className="py-3 font-bold text-[#11310C] max-w-[140px] truncate">
+                          {inv.name}
+                        </td>
+                        <td className="py-3 text-[10px]">
+                          <span className="px-2 py-0.5 rounded-full bg-[#11310C]/10 text-[#11310C] font-bold">
+                            {inv.assetClass || 'Ação'}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right font-extrabold">
+                          {inv.sharesCount}
+                        </td>
+                        <td className="py-3 text-right text-[#11310C]/80">
+                          ${inv.averagePrice.toFixed(2)}
+                        </td>
+                        <td className="py-3 text-right font-extrabold text-[#11310C]">
+                          ${inv.currentPrice.toFixed(2)}
+                        </td>
+                        <td className={`py-3 text-right font-extrabold ${isPositive ? 'text-emerald-800' : 'text-[#E13513]'}`}>
+                          {isPositive ? '+' : ''}${inv.usdChange.toFixed(2)}
+                        </td>
+                        <td className="py-3 text-right">
+                          <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                            isPositive ? 'bg-emerald-100 text-emerald-900' : 'bg-red-100 text-red-900'
+                          }`}>
+                            {isPositive ? '+' : ''}{inv.percentChange.toFixed(2)}%
+                          </span>
+                        </td>
+                        <td className="py-3 text-right text-[#11310C]/70">
+                          ${inv.usdApplied.toFixed(2)}
+                        </td>
+                        <td className="py-3 text-right font-extrabold text-emerald-900">
+                          ${inv.usdCurrent.toFixed(2)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

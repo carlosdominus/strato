@@ -104,36 +104,77 @@ export function App() {
           setDebtors(data.debtors);
         }
 
-        if (data.totaisMatrix && data.totaisMatrix.months && data.totaisMatrix.accounts) {
-          const { months, accounts } = data.totaisMatrix;
-          setMonthsData((prev) => {
-            const next = { ...prev };
-            months.forEach((mName: string) => {
-              let sumForMonth = 0;
-              accounts.forEach((acc: any) => {
-                sumForMonth += acc.balances[mName] || 0;
-              });
-              if (next[mName]) {
-                next[mName] = {
-                  ...next[mName],
-                  totalMoney: sumForMonth > 0 ? sumForMonth : next[mName].totalMoney,
-                };
-              }
-            });
-            return next;
-          });
-        }
+        if (data.totaisMatrix && data.totaisMatrix.months && Array.isArray(data.totaisMatrix.months)) {
+          const { months, accounts, totalsRowMap } = data.totaisMatrix;
+          const activeTxs = (data.transactions && Array.isArray(data.transactions)) ? data.transactions : transactions;
 
-        if (data.liveSummary) {
-          setMonthsData((prev) => ({
-            ...prev,
-            'Agosto 2026': {
-              ...prev['Agosto 2026'],
-              totalIncome: data.liveSummary.totalIncome,
-              totalExpenses: data.liveSummary.totalExpenses,
-              leftover: data.liveSummary.leftover,
-            },
-          }));
+          const monthNumMap: Record<string, string> = {
+            'maio': '05',
+            'junho': '06',
+            'julho': '07',
+            'agosto': '08',
+            'setembro': '09',
+            'outubro': '10',
+            'novembro': '11',
+            'dezembro': '12',
+          };
+
+          const newMonthsData: Record<string, MonthSummaryData> = {};
+
+          months.forEach((mRaw: string) => {
+            if (!mRaw) return;
+            const lowerRaw = mRaw.trim().toLowerCase();
+            const capRaw = lowerRaw.charAt(0).toUpperCase() + lowerRaw.slice(1);
+            const mKey = capRaw.includes('202') ? capRaw : `${capRaw} 2026`;
+
+            let totalMoney = totalsRowMap ? totalsRowMap[mRaw] || 0 : 0;
+            if (!totalMoney && accounts) {
+              accounts.forEach((acc: any) => {
+                totalMoney += (acc.balances && acc.balances[mRaw]) ? acc.balances[mRaw] : 0;
+              });
+            }
+
+            const monthNum = monthNumMap[lowerRaw];
+            let monthIncome = 0;
+            let monthExpenses = 0;
+
+            if (monthNum && activeTxs) {
+              activeTxs.forEach((tx: Transaction) => {
+                if (tx.date && (tx.date.startsWith(`2026-${monthNum}`) || tx.date.startsWith(`05/${monthNum}`) || tx.date.includes(`/${monthNum}/2026`))) {
+                  if (tx.type === 'income') monthIncome += tx.amount;
+                  else if (tx.type === 'expense') monthExpenses += tx.amount;
+                }
+              });
+            }
+
+            newMonthsData[mKey] = {
+              month: mKey,
+              totalMoney: totalMoney || 0,
+              totalIncome: monthIncome,
+              totalExpenses: monthExpenses,
+              leftover: monthIncome - monthExpenses,
+              monthlyGrowthPercent: 0,
+              totalInvestments: 0,
+              totalDebts: 0,
+              activeSubscriptionsCount: 4,
+            };
+          });
+
+          // Calculate sequential growth percentage
+          const mKeys = Object.keys(newMonthsData);
+          mKeys.forEach((k, idx) => {
+            if (idx > 0) {
+              const prevVal = newMonthsData[mKeys[idx - 1]].totalMoney;
+              const currVal = newMonthsData[k].totalMoney;
+              if (prevVal > 0 && currVal > 0) {
+                newMonthsData[k].monthlyGrowthPercent = parseFloat((((currVal - prevVal) / prevVal) * 100).toFixed(2));
+              }
+            }
+          });
+
+          if (mKeys.length > 0) {
+            setMonthsData(newMonthsData);
+          }
         }
       }
     } catch (err) {

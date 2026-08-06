@@ -31,6 +31,7 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
 
   const totalInvoices = creditCards.reduce((acc, c) => acc + c.currentInvoice, 0);
   const totalSubscriptionsMonthly = activeSubs.reduce((acc, s) => acc + s.monthlyPrice, 0);
+  const totalPausedMonthly = pausedSubs.reduce((acc, s) => acc + s.monthlyPrice, 0);
 
   return (
     <div className="w-full max-w-7xl mx-auto px-6 lg:px-12 space-y-10 pb-16">
@@ -67,30 +68,30 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
           <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
             {formatCurrency(totalInvoices)}
           </div>
-          <p className="text-[11px] text-[#11310C]/60 mt-2 font-medium">Consolidado do mês</p>
+          <p className="text-[11px] text-[#11310C]/60 mt-2 font-medium">Consolidado dos cartões</p>
         </div>
 
         <div className="glass-card rounded-3xl p-7 border border-[#11310C]/06">
           <span className="text-[11px] font-bold text-[#11310C]/60 uppercase tracking-wider block mb-2">
-            Total Assinaturas / Mês
+            Total Assinaturas Ativas
           </span>
           <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
             {formatCurrency(totalSubscriptionsMonthly)}
           </div>
           <p className="text-[11px] text-[#11310C]/60 mt-2 font-medium">
-            {subscriptions.length} assinaturas ativas
+            {activeSubs.length} assinaturas ativas ({pausedSubs.length} pausadas)
           </p>
         </div>
 
         <div className="glass-card rounded-3xl p-7 border border-[#11310C]/06">
           <span className="text-[11px] font-bold text-[#11310C]/60 uppercase tracking-wider block mb-2">
-            Economia Potencial Recom.
+            Economia por Assinaturas Pausadas
           </span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#E13513]">
-            R$ 59,90 /mês
+          <div className="text-2xl sm:text-3xl font-extrabold text-amber-800">
+            {formatCurrency(totalPausedMonthly)} /mês
           </div>
-          <p className="text-[11px] text-[#11310C]/60 mt-2 font-medium">
-            1 assinatura com baixa utilização
+          <p className="text-[11px] text-[#11310C]/60 mt-2 font-medium truncate">
+            {pausedSubs.length > 0 ? `${pausedSubs.length} pausadas: ${pausedSubs.map(s => s.serviceName).join(', ')}` : 'Nenhuma assinatura pausada'}
           </p>
         </div>
       </div>

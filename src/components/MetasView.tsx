@@ -205,8 +205,17 @@ export const MetasView: React.FC<MetasViewProps> = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {goals.map((goal) => {
+          {goals.length === 0 ? (
+            <div className="p-8 text-center space-y-3 glass-card rounded-3xl border border-white/90 bg-white/60">
+              <Target className="w-10 h-10 text-[#11310C]/40 mx-auto" />
+              <h4 className="font-extrabold text-base text-[#11310C]">Nenhuma Meta Definida</h4>
+              <p className="text-xs text-[#11310C]/70 max-w-md mx-auto font-medium">
+                Você ainda não possui metas cadastradas. Clique em <strong>"Criar Nova Meta"</strong> acima para definir seus objetivos de reserva, viagem ou aquisições.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {goals.map((goal) => {
               const pct = Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100));
               const remaining = goal.targetAmount - goal.currentAmount;
 
@@ -276,6 +285,7 @@ export const MetasView: React.FC<MetasViewProps> = ({
               );
             })}
           </div>
+          )}
         </div>
 
         {/* AI Calculations & Projection Panel (1 col) */}
