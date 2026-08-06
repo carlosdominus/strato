@@ -44,6 +44,8 @@ export function App() {
   const [bankAccounts] = useState(INITIAL_BANK_ACCOUNTS);
   const [subscriptions, setSubscriptions] = useState(MOCK_SUBSCRIPTIONS);
   const [spreadsheets, setSpreadsheets] = useState<SpreadsheetConnection[]>(MOCK_SPREADSHEETS);
+  const [usdRate, setUsdRate] = useState<number>(5.50);
+  const [netUsdRate, setNetUsdRate] = useState<number>(5.401);
 
   // Auth state
   const [googleUser, setGoogleUser] = useState<User | null>(null);
@@ -102,6 +104,13 @@ export function App() {
 
         if (data.debtors && Array.isArray(data.debtors) && data.debtors.length > 0) {
           setDebtors(data.debtors);
+        }
+
+        if (data.usdRate) {
+          setUsdRate(data.usdRate);
+        }
+        if (data.netUsdRate) {
+          setNetUsdRate(data.netUsdRate);
         }
 
         if (data.totaisMatrix && data.totaisMatrix.months && Array.isArray(data.totaisMatrix.months)) {
@@ -364,6 +373,8 @@ export function App() {
         {activeTab === 'investimentos' && (
           <InvestimentosView
             investments={investments}
+            usdRate={usdRate}
+            netUsdRate={netUsdRate}
             onOpenManualModal={() => setIsManualModalOpen(true)}
           />
         )}

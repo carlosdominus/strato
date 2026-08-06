@@ -22,6 +22,8 @@ import { formatCurrency, formatPercent } from '../utils/formatters';
 
 interface InvestimentosViewProps {
   investments: Investment[];
+  usdRate?: number;
+  netUsdRate?: number;
   onOpenManualModal: () => void;
 }
 
@@ -45,11 +47,13 @@ const CustomPieTooltip = ({ active, payload, totalValue }: any) => {
 
 export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
   investments,
+  usdRate = 5.50,
+  netUsdRate,
   onOpenManualModal,
 }) => {
-  const usdExchangeRateCommercial = 5.14; // Commercial USD/BRL
+  const usdExchangeRateCommercial = usdRate || 5.50; // Dynamic USD commercial rate
   const avenueRepatriationFeePercent = 1.8; // ~1.4% spread + 0.38% IOF
-  const netUsdRateAvenue = usdExchangeRateCommercial * (1 - avenueRepatriationFeePercent / 100); // ~5.0475 BRL/USD
+  const netUsdRateAvenue = netUsdRate || (usdExchangeRateCommercial * (1 - avenueRepatriationFeePercent / 100)); // Dynamic Net BRL/USD rate
 
   // Safe property extraction helper and filter zero assets as requested by user
   const safeInvestments = (investments || [])
@@ -67,8 +71,10 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
       const usdCurrent = inv.usdCurrent ?? (inv as any).dollarsCurrent ?? (inv.currentValue ? inv.currentValue / usdExchangeRateCommercial : sharesCount * currentPrice);
       const usdChange = inv.usdChange ?? (inv as any).variationDollar ?? (usdCurrent - usdApplied);
       const percentChange = inv.percentChange ?? (inv as any).variationPercent ?? (inv.yieldPercent || (usdApplied > 0 ? ((usdCurrent - usdApplied) / usdApplied) * 100 : 0));
-      const amountInvested = inv.amountInvested || Math.round(usdApplied * netUsdRateAvenue);
-      const currentValue = inv.currentValue || Math.round(usdCurrent * netUsdRateAvenue);
+      
+      // Calculate BRL amounts using netUsdRateAvenue (discounting 1.8% IOF/spread)
+      const amountInvested = Math.round(usdApplied * netUsdRateAvenue);
+      const currentValue = Math.round(usdCurrent * netUsdRateAvenue);
       const monthlyDividend = inv.monthlyDividend || 0;
 
       return {
@@ -136,13 +142,13 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
         {/* Card 1: Valor Atual */}
         <div className="glass-card rounded-3xl p-5 border border-white/90">
           <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider block mb-2">
-            Valor Total Atual
+            Valor Total em R$ (Líquido pós-IOF)
           </span>
           <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
             {formatCurrency(totalCurrentValue)}
           </div>
           <p className="text-[11px] font-medium text-[#11310C]/60 mt-2">
-            Valor Aplicado: {formatCurrency(totalInvested)}
+            Valor Aplicado: {formatCurrency(totalInvested)} • Descontado IOF (1,8%)
           </p>
         </div>
 
