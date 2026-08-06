@@ -171,6 +171,11 @@ export function App() {
             'dezembro': '12',
           };
 
+          const activeInvs = (data.investments && Array.isArray(data.investments)) ? data.investments : investments;
+          const calcTotalInvestments = activeInvs.reduce((acc: number, inv: any) => acc + (inv.currentValue || 0), 0);
+          const calcTotalDebts = data.debtorsSummary ? data.debtorsSummary.restanteTotal : 0;
+          const calcSubscriptionsCount = (data.subscriptions && Array.isArray(data.subscriptions)) ? data.subscriptions.length : 3;
+
           const newMonthsData: Record<string, MonthSummaryData> = {};
 
           months.forEach((mRaw: string) => {
@@ -210,9 +215,9 @@ export function App() {
               totalExpenses: monthExpenses,
               leftover: monthIncome - monthExpenses,
               monthlyGrowthPercent: 0,
-              totalInvestments: 0,
-              totalDebts: 0,
-              activeSubscriptionsCount: 4,
+              totalInvestments: calcTotalInvestments,
+              totalDebts: calcTotalDebts,
+              activeSubscriptionsCount: calcSubscriptionsCount,
             };
           });
 

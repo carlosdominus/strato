@@ -318,7 +318,7 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
                           </span>
                         </td>
                         <td className="py-3 text-right font-extrabold">
-                          {inv.sharesCount}
+                          {inv.sharesCount % 1 === 0 ? inv.sharesCount : parseFloat(inv.sharesCount.toFixed(5))}
                         </td>
                         <td className="py-3 text-right text-[#11310C]/80">
                           ${inv.averagePrice.toFixed(2)}

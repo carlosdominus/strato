@@ -9,7 +9,7 @@ export function parseCsvToRows(csvText: string): string[][] {
 
 export function parseCleanNumber(val: string): number {
   if (!val) return 0;
-  let s = val.replace(/["'$R\s]/gi, '').trim();
+  let s = val.replace(/["'$R%\s]/gi, '').trim();
   if (!s) return 0;
 
   if (s.includes('.') && s.includes(',')) {
@@ -314,7 +314,7 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
   }
 
   const repatriationFeePercent = 1.8;
-  const netUsdRate = usdRateCommercial * (1 - repatriationFeePercent / 100);
+  let netUsdRate = usdRateCommercial * (1 - repatriationFeePercent / 100);
 
   let debtorsSummary = { pagouTotal: 0, pegouTotal: 0, restanteTotal: 0 };
 
@@ -597,33 +597,48 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
         }
 
         if (sheet.id === 'sheet-investimentos') {
+          if (rows.length > 0 && rows[0] && rows[0][10]) {
+            const k1Rate = parseCleanNumber(rows[0][10]);
+            if (k1Rate > 0) {
+              usdRateCommercial = k1Rate;
+              netUsdRate = usdRateCommercial * (1 - repatriationFeePercent / 100);
+            }
+          }
+
           dataRows.forEach((cols, index) => {
-            if (!cols[0] || cols[0].toUpperCase() === 'TIKET' || cols[0].toUpperCase() === 'TICKER') return;
+            if (!cols[0] || cols[0].toUpperCase() === 'TIKET' || cols[0].toUpperCase() === 'TICKER' || cols[0].toUpperCase() === 'NAME') return;
             const ticker = cols[0].trim();
-            const sharesCount = parseCleanNumber(cols[1]);
-            const avgPriceApplied = parseCleanNumber(cols[2]);
-            const currentPrice = parseCleanNumber(cols[3]);
-            const yieldPercent = parseCleanNumber(cols[4]);
-            const usdApplied = parseCleanNumber(cols[6]);
-            const usdCurrent = parseCleanNumber(cols[7]);
-            const usdVariation = parseCleanNumber(cols[8]);
+            const name = (cols[1] || ticker).trim();
+            const rawClass = (cols[2] || '').trim();
+            const sharesCount = parseCleanNumber(cols[3]);
+            const avgPriceApplied = parseCleanNumber(cols[4]);
+            const currentPrice = parseCleanNumber(cols[5]);
+            const usdVariation = parseCleanNumber(cols[6]);
+            const percentChange = parseCleanNumber(cols[7]);
+            const usdApplied = parseCleanNumber(cols[8]);
+            const usdCurrent = parseCleanNumber(cols[9]);
 
             if (sharesCount <= 0 && usdApplied <= 0 && usdCurrent <= 0) return;
 
-            const category = ticker.includes('VT') || ticker.includes('SCHD') || ticker.includes('VOO') || ticker.includes('QQQ') || ticker.includes('NVDA') ? 'Internacional' : 'Ações BR';
+            let assetClass = 'Ação Internacional';
+            if (rawClass.toUpperCase() === 'REIT') assetClass = 'FII / REIT';
+            else if (rawClass.toUpperCase() === 'ETF') assetClass = 'ETF Internacional';
+            else if (rawClass.toUpperCase() === 'STOCK') assetClass = 'Ação Internacional';
+
+            const category = rawClass.toUpperCase() === 'REIT' || rawClass.toUpperCase() === 'ETF' || rawClass.toUpperCase() === 'STOCK' ? 'Internacional' : 'Ações BR';
 
             parsedInvestments.push({
               id: `inv-sheet-${index}`,
               ticker,
-              companyName: ticker,
-              name: ticker,
-              assetClass: 'ETF / Ação',
+              companyName: name,
+              name,
+              assetClass,
               sharesCount,
               averagePrice: avgPriceApplied,
               currentPrice,
-              yieldPercent,
+              yieldPercent: percentChange,
               usdChange: usdVariation,
-              percentChange: yieldPercent,
+              percentChange,
               usdApplied,
               usdCurrent,
               category,
