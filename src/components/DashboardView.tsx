@@ -359,24 +359,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Metric 3: Sobrou no Período (Highlighted in Citron) */}
-        <div className="glass-card rounded-3xl p-5 border border-[#C4C240]/50 relative overflow-hidden bg-gradient-to-br from-white via-white to-[#F7F9E3]/50">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-[#11310C] uppercase tracking-wider flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-[#C4C240]" />
-              Sobrou {periodLabel}
-            </span>
-            <div className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#11310C] text-[#C4C240]">
-              LÍQUIDO
+        {/* Metric 3: Sobrou no Período (Estética Dinheiro Total Consolidado) */}
+        <div className="glass-dark-card rounded-3xl p-5 text-[#FAFBF6] space-y-3 relative overflow-hidden glaze-shine flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-extrabold uppercase tracking-widest text-[#C4C240] flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-[#C4C240]" />
+                Sobrou {periodLabel}
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#C4C240] text-[#11310C]">
+                LÍQUIDO
+              </span>
+            </div>
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mt-2">
+              {formatCurrency(displayLeftover)}
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            {formatCurrency(displayLeftover)}
-          </div>
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-[11px] font-semibold text-[#11310C]/80">
-              Disponível para aportes
-            </span>
+          <div className="flex items-center gap-2 pt-2 border-t border-white/10 text-xs text-[#FAFBF6]/80 font-medium">
+            <span>Disponível para aportes & investimentos</span>
           </div>
         </div>
 

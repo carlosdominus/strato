@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Papa from 'papaparse';
 import { SpreadsheetConnection, Transaction } from '../types';
+import { CustomSelect } from './CustomSelect';
 
 interface PlanilhasViewProps {
   spreadsheets: SpreadsheetConnection[];
@@ -286,18 +287,20 @@ export const PlanilhasView: React.FC<PlanilhasViewProps> = ({
             <label className="block text-xs font-bold text-[#11310C]/70 mb-1">
               Selecione a Categoria da Planilha
             </label>
-            <select
+            <CustomSelect
               value={selectedSheetType}
-              onChange={(e) => setSelectedSheetType(e.target.value as any)}
-              className="w-full px-3 py-2 rounded-xl bg-white/90 border border-[#11310C]/20 text-xs font-bold text-[#11310C]"
-            >
-              <option value="extrato">Planilha de Extrato Bancário</option>
-              <option value="cartoes">Planilha de Faturas de Cartões</option>
-              <option value="investimentos">Planilha de Investimentos</option>
-              <option value="dividas">Planilha de Dívidas & Financiamentos</option>
-              <option value="assinaturas">Planilha de Assinaturas Fixas</option>
-              <option value="total_mes">Planilha do Balanço Total do Mês</option>
-            </select>
+              onChange={(val) => setSelectedSheetType(val as any)}
+              className="w-full"
+              buttonClassName="w-full py-2.5 bg-white/90"
+              options={[
+                { value: 'extrato', label: 'Planilha de Extrato Bancário' },
+                { value: 'cartoes', label: 'Planilha de Faturas de Cartões' },
+                { value: 'investimentos', label: 'Planilha de Investimentos' },
+                { value: 'dividas', label: 'Planilha de Dívidas & Financiamentos' },
+                { value: 'assinaturas', label: 'Planilha de Assinaturas Fixas' },
+                { value: 'total_mes', label: 'Planilha do Balanço Total do Mês' },
+              ]}
+            />
           </div>
 
           {/* Drag & Drop Zone */}

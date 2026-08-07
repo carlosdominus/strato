@@ -191,7 +191,7 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
               <div
                 key={card.id}
                 className={`p-5 rounded-3xl bg-white/90 border space-y-3 shadow-xs transition-all ${
-                  isPaid ? 'border-emerald-300 bg-emerald-50/20' : 'border-[#11310C]/15 hover:border-[#C4C240]'
+                  isPaid ? 'border-[#11310C]/25 bg-[#11310C]/5' : 'border-[#11310C]/15 hover:border-[#C4C240]'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -209,18 +209,12 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
 
                   <div className="flex items-center gap-1">
                     {isPaid ? (
-                      <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                      <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-[#11310C] text-[#C4C240] border border-[#C4C240]/30 shadow-xs">
+                        <CheckCircle2 className="w-3 h-3 text-[#C4C240]" />
                         Fatura Paga
                       </span>
                     ) : (
-                      <span
-                        className={`text-[9px] font-extrabold uppercase px-2.5 py-1 rounded-full ${
-                          card.status === 'fechada'
-                            ? 'bg-[#E13513]/15 text-[#E13513]'
-                            : 'bg-[#C4C240]/30 text-[#11310C]'
-                        }`}
-                      >
+                      <span className="text-[9px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-[#E13513]/15 text-[#E13513] border border-[#E13513]/30">
                         {card.status === 'fechada' ? 'Fatura Fechada' : 'Fatura Aberta'}
                       </span>
                     )}
@@ -230,13 +224,13 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
                 <div className="p-3 rounded-2xl bg-[#11310C]/5 space-y-2">
                   <div className="flex items-center justify-between text-xs font-bold text-[#11310C]">
                     <span>Fatura Atual:</span>
-                    <span className={`text-sm font-extrabold ${isPaid ? 'text-emerald-800 line-through' : 'text-[#11310C]'}`}>
+                    <span className={`text-sm font-extrabold ${isPaid ? 'text-[#11310C]/70 line-through' : 'text-[#11310C]'}`}>
                       {formatCurrency(card.currentInvoice)}
                     </span>
                   </div>
                   <div className="w-full bg-white h-1.5 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${isPaid ? 'bg-emerald-600' : 'bg-[#11310C]'}`}
+                      className={`h-full rounded-full ${isPaid ? 'bg-[#11310C]/40' : 'bg-[#11310C]'}`}
                       style={{ width: `${Math.min(100, isPaid ? 0 : (card.currentInvoice / card.limit) * 100)}%` }}
                     />
                   </div>
@@ -294,7 +288,7 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
                     onClick={() => onToggleCardPaid(card.id)}
                     className={`w-full py-2 px-3 rounded-2xl text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
                       isPaid
-                        ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 hover:bg-emerald-200'
+                        ? 'bg-[#11310C]/10 text-[#11310C] border border-[#11310C]/20 hover:bg-[#11310C]/20'
                         : 'bg-[#11310C] text-[#C4C240] hover:bg-[#11310C]/90 shadow-xs'
                     }`}
                   >

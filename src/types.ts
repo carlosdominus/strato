@@ -155,11 +155,13 @@ export interface Debtor {
 export interface FinancialGoal {
   id: string;
   title: string;
-  category: 'Reserva' | 'Investimento' | 'Aquisição' | 'Viagem' | 'Aposentadoria' | 'Outros';
+  category: 'reserva' | 'imovel' | 'aposentadoria' | 'veiculo' | 'viagem' | 'outros' | 'Reserva' | 'Investimento' | 'Aquisição' | 'Viagem' | 'Aposentadoria' | 'Outros' | string;
   targetAmount: number;
   currentAmount: number;
-  targetDate: string; // YYYY-MM
+  targetDate?: string; // YYYY-MM
+  deadline?: string; // YYYY-MM-DD or date string
   monthlyContribution: number;
+  targetAccount?: string; // Coluna de conta vinculada (ex: PicPay PJ Cofrinho)
   notes?: string;
 }
 

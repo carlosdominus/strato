@@ -13,6 +13,7 @@ import {
 import { Transaction, TransactionType } from '../types';
 import { formatCurrency, formatDateBR } from '../utils/formatters';
 import { getTransactionAllocatedMonthLabel, getMonthLabelFromIsoDate } from '../utils/sheetParser';
+import { CustomSelect } from './CustomSelect';
 
 interface ExtratoViewProps {
   transactions: Transaction[];
@@ -271,46 +272,34 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
           </div>
 
           {/* Account Dropdown */}
-          <select
+          <CustomSelect
             value={filterAccount}
-            onChange={(e) => setFilterAccount(e.target.value)}
-            className="px-3 py-1.5 rounded-2xl bg-white/90 border border-[#11310C]/15 text-xs font-bold text-[#11310C] focus:outline-none cursor-pointer"
-          >
-            <option value="todas">Todas as Contas (Col D)</option>
-            {accounts.map((acc) => (
-              <option key={acc} value={acc}>
-                {acc}
-              </option>
-            ))}
-          </select>
+            onChange={setFilterAccount}
+            options={[
+              { value: 'todas', label: 'Todas as Contas' },
+              ...accounts.map((acc) => ({ value: acc, label: acc })),
+            ]}
+          />
 
           {/* Payment Method Dropdown */}
-          <select
+          <CustomSelect
             value={filterMethod}
-            onChange={(e) => setFilterMethod(e.target.value)}
-            className="px-3 py-1.5 rounded-2xl bg-white/90 border border-[#11310C]/15 text-xs font-bold text-[#11310C] focus:outline-none cursor-pointer"
-          >
-            <option value="todos">Todos os Tipos (Col E)</option>
-            {paymentMethods.map((pm) => (
-              <option key={pm} value={pm}>
-                {pm}
-              </option>
-            ))}
-          </select>
+            onChange={setFilterMethod}
+            options={[
+              { value: 'todos', label: 'Todos os Tipos' },
+              ...paymentMethods.map((pm) => ({ value: pm, label: pm })),
+            ]}
+          />
 
           {/* Day Dropdown */}
-          <select
+          <CustomSelect
             value={filterDay}
-            onChange={(e) => setFilterDay(e.target.value)}
-            className="px-3 py-1.5 rounded-2xl bg-white/90 border border-[#11310C]/15 text-xs font-bold text-[#11310C] focus:outline-none cursor-pointer"
-          >
-            <option value="todos">Todos os Dias (Col A)</option>
-            {daysInMonth.map((d) => (
-              <option key={d} value={d}>
-                Dia {d}
-              </option>
-            ))}
-          </select>
+            onChange={setFilterDay}
+            options={[
+              { value: 'todos', label: 'Todos os Dias' },
+              ...daysInMonth.map((d) => ({ value: String(d), label: `Dia ${d}` })),
+            ]}
+          />
         </div>
       </div>
 

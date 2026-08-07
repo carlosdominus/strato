@@ -9,6 +9,7 @@ import {
   Building2,
   Bitcoin,
   Globe,
+  Sparkles,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -178,21 +179,25 @@ export const InvestimentosView: React.FC<InvestimentosViewProps> = ({
           </p>
         </div>
 
-        {/* Card 4: Lucro & Rendimento */}
-        <div className="glass-card rounded-3xl p-5 border border-white/90">
-          <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider block mb-2">
-            Lucro Acumulado
-          </span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
-            {formatCurrency(totalProfit)}
+        {/* Card 4: Lucro Acumulado (Estética Dinheiro Total Consolidado) */}
+        <div className="glass-dark-card rounded-3xl p-5 text-[#FAFBF6] space-y-3 relative overflow-hidden glaze-shine flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-extrabold uppercase tracking-widest text-[#C4C240] flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-[#C4C240]" />
+                Lucro Acumulado
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#C4C240] text-[#11310C]">
+                {formatPercent(overallYield)}
+              </span>
+            </div>
+            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mt-2">
+              {formatCurrency(totalProfit)}
+            </div>
           </div>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#C4C240]/25 text-[#11310C]">
-              {formatPercent(overallYield)}
-            </span>
-            <span className="text-[10px] text-[#11310C]/60 font-medium">
-              Renda Passiva: {formatCurrency(totalMonthlyDividends)}/mês
-            </span>
+          <div className="flex items-center justify-between pt-2 border-t border-white/10 text-xs text-[#FAFBF6]/80 font-medium">
+            <span>Renda Passiva:</span>
+            <strong className="text-[#C4C240] font-extrabold">{formatCurrency(totalMonthlyDividends)}/mês</strong>
           </div>
         </div>
       </div>

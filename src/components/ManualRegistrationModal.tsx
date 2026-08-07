@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, CheckCircle2, ArrowUpRight, ArrowDownRight, FileSpreadsheet, Sparkles } from 'lucide-react';
 import { Transaction, TransactionType } from '../types';
+import { CustomSelect } from './CustomSelect';
 
 interface ManualRegistrationModalProps {
   isOpen: boolean;
@@ -185,21 +186,23 @@ export const ManualRegistrationModal: React.FC<ManualRegistrationModalProps> = (
                 <label className="block text-[11px] font-bold text-[#11310C]/70 uppercase mb-1">
                   Categoria
                 </label>
-                <select
+                <CustomSelect
                   value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/90 border border-[#11310C]/20 focus:outline-none focus:ring-2 focus:ring-[#C4C240] text-xs font-semibold text-[#11310C]"
-                >
-                  <option value="Alimentação">Alimentação</option>
-                  <option value="Moradia">Moradia</option>
-                  <option value="Salário & Renda">Salário & Renda</option>
-                  <option value="Investimentos">Investimentos</option>
-                  <option value="Lazer & Viagens">Lazer & Viagens</option>
-                  <option value="Assinaturas">Assinaturas</option>
-                  <option value="Transporte">Transporte</option>
-                  <option value="Saúde">Saúde</option>
-                  <option value="Dívidas & Habitação">Dívidas & Habitação</option>
-                </select>
+                  onChange={setCategory}
+                  className="w-full"
+                  buttonClassName="w-full py-2.5 bg-white/90"
+                  options={[
+                    'Alimentação',
+                    'Moradia',
+                    'Salário & Renda',
+                    'Investimentos',
+                    'Lazer & Viagens',
+                    'Assinaturas',
+                    'Transporte',
+                    'Saúde',
+                    'Dívidas & Habitação',
+                  ]}
+                />
               </div>
 
               <div>
@@ -249,16 +252,18 @@ export const ManualRegistrationModal: React.FC<ManualRegistrationModalProps> = (
                   <FileSpreadsheet className="w-3.5 h-3.5 text-[#C4C240]" />
                   Planilha Alvo
                 </label>
-                <select
+                <CustomSelect
                   value={targetSheet}
-                  onChange={(e) => setTargetSheet(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/90 border border-[#11310C]/20 focus:outline-none focus:ring-2 focus:ring-[#C4C240] text-xs font-semibold text-[#11310C]"
-                >
-                  <option value="Planilha_Extrato_Bancario.xlsx">Planilha_Extrato_Bancario.xlsx</option>
-                  <option value="Planilha_Cartoes_Agosto.xlsx">Planilha_Cartoes_Agosto.xlsx</option>
-                  <option value="Planilha_Investimentos.xlsx">Planilha_Investimentos.xlsx</option>
-                  <option value="Planilha_Balanco_Total.xlsx">Planilha_Balanco_Total.xlsx</option>
-                </select>
+                  onChange={setTargetSheet}
+                  className="w-full"
+                  buttonClassName="w-full py-2.5 bg-white/90"
+                  options={[
+                    'Planilha_Extrato_Bancario.xlsx',
+                    'Planilha_Cartoes_Agosto.xlsx',
+                    'Planilha_Investimentos.xlsx',
+                    'Planilha_Balanco_Total.xlsx',
+                  ]}
+                />
               </div>
             </div>
 

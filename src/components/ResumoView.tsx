@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   TrendingUp,
   ArrowUpRight,
@@ -8,7 +8,9 @@ import {
   Calendar,
   Sparkles,
   Car,
+  PlusCircle,
 } from 'lucide-react';
+import { CustomSelect } from './CustomSelect';
 import {
   ResponsiveContainer,
   BarChart,
@@ -18,11 +20,9 @@ import {
   Tooltip,
   CartesianGrid,
   Cell,
-  LineChart,
-  Line,
 } from 'recharts';
-import { MonthSummaryData, SpreadsheetConnection, Investment } from '../types';
-import { formatCurrency, formatPercent } from '../utils/formatters';
+import { MonthSummaryData, SpreadsheetConnection, Investment, FinancialGoal } from '../types';
+import { formatCurrency } from '../utils/formatters';
 
 interface ResumoViewProps {
   currentMonthData: MonthSummaryData;
@@ -32,6 +32,7 @@ interface ResumoViewProps {
   onSelectMonth: (month: string) => void;
   monthsList: string[];
   investments?: Investment[];
+  goals?: FinancialGoal[];
 }
 
 const CustomBarTooltip = ({ active, payload, label }: any) => {
@@ -65,7 +66,10 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
   onSelectMonth,
   monthsList,
   investments = [],
+  goals = [],
 }) => {
+  const [includeAportes, setIncludeAportes] = useState<boolean>(false);
+
   // Live real-time investment total calculation
   const liveInvestmentsTotal =
     investments.length > 0
@@ -75,24 +79,6 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
   // Real-time consolidated total money
   const bankAccountsBalance = currentMonthData.totalMoney;
   const consolidatedTotalMoney = bankAccountsBalance + liveInvestmentsTotal;
-
-  // Monthly total money chart data
-  const monthlyTotalsChart = Object.keys(allMonthsData).map((mKey) => {
-    const item = allMonthsData[mKey];
-    const isProj = mKey.toLowerCase().includes('setembro') || mKey.toLowerCase().includes('outubro') || mKey.toLowerCase().includes('novembro') || mKey.toLowerCase().includes('dezembro') || mKey.includes('2027');
-
-    return {
-      monthKey: mKey,
-      month: mKey.split(' ')[0],
-      totalMoney: item.totalMoney,
-      growth: item.monthlyGrowthPercent,
-      isPositive: item.monthlyGrowthPercent >= 0,
-      isProjected: isProj,
-      income: item.totalIncome,
-      expenses: item.totalExpenses,
-      leftover: item.leftover,
-    };
-  });
 
   // Extract accounts matrix details if present or default list of columns
   const accountCols = currentMonthData.accountColumnsMeta && currentMonthData.accountColumnsMeta.length > 0
@@ -124,6 +110,187 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
         };
       });
 
+  // Matching helper for goals and accounts
+  const matchAccountName = (goalAccount?: string, colName?: string): boolean => {
+    if (!goalAccount || !colName) return false;
+    const g = goalAccount.trim().toLowerCase();
+    const c = colName.trim().toLowerCase();
+    if (g === c) return true;
+
+    const gClean = g.replace(/\(\d+%\)/g, '').replace(/cofrinho/g, '').replace(/confrinho/g, '').trim();
+    const cClean = c.replace(/\(\d+%\)/g, '').replace(/cofrinho/g, '').replace(/confrinho/g, '').trim();
+
+    if (gClean && cClean && (gClean === cClean || cClean.includes(gClean) || gClean.includes(cClean))) {
+      return true;
+    }
+    return false;
+  };
+
+  const PORTUGUESE_MONTH_MAP: Record<string, number> = {
+    janeiro: 1, jan: 1,
+    fevereiro: 2, fev: 2,
+    marco: 3, março: 3, mar: 3,
+    abril: 4, abr: 4,
+    maio: 5, mai: 5,
+    junho: 6, jun: 6,
+    julho: 7, jul: 7,
+    agosto: 8, ago: 8,
+    setembro: 9, set: 9,
+    outubro: 10, out: 10,
+    novembro: 11, nov: 11,
+    dezembro: 12, dez: 12,
+  };
+
+  const parseYearMonthFromLabel = (label?: string, fallbackDate?: string): { year: number; month: number } | null => {
+    if (label) {
+      const tokens = label.toLowerCase().split(/\s+/);
+      let month = 0;
+      let year = 0;
+      for (const token of tokens) {
+        if (PORTUGUESE_MONTH_MAP[token]) {
+          month = PORTUGUESE_MONTH_MAP[token];
+        } else if (/^\d{4}$/.test(token)) {
+          year = parseInt(token, 10);
+        }
+      }
+      if (month > 0 && year > 0) return { year, month };
+    }
+
+    if (fallbackDate && fallbackDate.includes('/')) {
+      const parts = fallbackDate.split('/');
+      if (parts.length === 3) {
+        const month = parseInt(parts[1], 10);
+        const year = parseInt(parts[2], 10);
+        if (!isNaN(month) && !isNaN(year)) return { year, month };
+      }
+    }
+
+    return null;
+  };
+
+  const parseGoalDeadlineYearMonth = (goal: FinancialGoal): { year: number; month: number } | null => {
+    const dateStr = goal.deadline || goal.targetDate;
+    if (!dateStr) return null;
+
+    if (dateStr.includes('-')) {
+      const parts = dateStr.split('-');
+      if (parts.length >= 2) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        if (!isNaN(year) && !isNaN(month)) return { year, month };
+      }
+    }
+
+    if (dateStr.includes('/')) {
+      const parts = dateStr.split('/');
+      if (parts.length === 2) {
+        const month = parseInt(parts[0], 10);
+        const year = parseInt(parts[1], 10);
+        if (!isNaN(year) && !isNaN(month)) return { year, month };
+      } else if (parts.length === 3) {
+        const month = parseInt(parts[1], 10);
+        const year = parseInt(parts[2], 10);
+        if (!isNaN(year) && !isNaN(month)) return { year, month };
+      }
+    }
+
+    return null;
+  };
+
+  const isGoalActiveInMonth = (goal: FinancialGoal, rowYM: { year: number; month: number } | null): boolean => {
+    if (!rowYM) return true;
+    const goalYM = parseGoalDeadlineYearMonth(goal);
+    if (!goalYM) return true;
+
+    const rowVal = rowYM.year * 12 + rowYM.month;
+    const goalVal = goalYM.year * 12 + goalYM.month;
+
+    return rowVal <= goalVal;
+  };
+
+  // Total monthly contribution across all goals
+  const activeTotalAporteMonthly = goals.reduce((acc, g) => acc + (g.monthlyContribution || 0), 0);
+
+  // Compute effective table rows (applying compounding + monthly aportes when toggle is active)
+  const effectiveTableRows = useMemo(() => {
+    if (!includeAportes) return tableRows;
+
+    const firstProjIndex = tableRows.findIndex((r) => r.isProjected);
+    if (firstProjIndex <= 0) return tableRows;
+
+    const newRows = tableRows.map((r) => ({ ...r, balances: { ...r.balances } }));
+    let runningBalances = { ...newRows[firstProjIndex - 1].balances };
+
+    for (let i = firstProjIndex; i < newRows.length; i++) {
+      const row = newRows[i];
+      const rowYM = parseYearMonthFromLabel(row.monthLabel, row.date);
+
+      // Filter goals that are still active in this month
+      const activeGoalsInMonth = goals.filter((g) => isGoalActiveInMonth(g, rowYM));
+
+      // Find goals that don't specify a target account or don't match any column
+      const unassignedAportes = activeGoalsInMonth
+        .filter((g) => !g.targetAccount || !accountCols.some((col) => matchAccountName(g.targetAccount, col.name)))
+        .reduce((sum, g) => sum + (g.monthlyContribution || 0), 0);
+
+      const perColUnassigned = accountCols.length > 0 ? unassignedAportes / accountCols.length : 0;
+
+      const newBalances: Record<string, number> = {};
+      let newTotal = 0;
+
+      for (const col of accountCols) {
+        const prevVal = runningBalances[col.name] ?? 0;
+        const ratePct = col.ratePct ?? 0;
+        const cdiMonthly = ratePct > 0 ? 0.0085 * (ratePct / 100) : 0;
+        const yielded = prevVal * (1 + cdiMonthly);
+
+        const colAportes = activeGoalsInMonth
+          .filter((g) => matchAccountName(g.targetAccount, col.name))
+          .reduce((sum, g) => sum + (g.monthlyContribution || 0), 0);
+
+        const finalVal = yielded + colAportes + perColUnassigned;
+
+        newBalances[col.name] = finalVal;
+        newTotal += finalVal;
+      }
+
+      runningBalances = newBalances;
+      newRows[i] = {
+        ...row,
+        balances: newBalances,
+        total: newTotal,
+      };
+    }
+
+    return newRows;
+  }, [tableRows, includeAportes, goals, accountCols]);
+
+  // Monthly total money chart data synced with effectiveTableRows
+  const monthlyTotalsChart = Object.keys(allMonthsData).map((mKey) => {
+    const item = allMonthsData[mKey];
+    const isProj = mKey.toLowerCase().includes('setembro') || mKey.toLowerCase().includes('outubro') || mKey.toLowerCase().includes('novembro') || mKey.toLowerCase().includes('dezembro') || mKey.includes('2027');
+
+    const matchingTableRow = effectiveTableRows.find(
+      (tr) => tr.monthLabel.toLowerCase() === mKey.toLowerCase()
+    );
+
+    const displayTotal = matchingTableRow ? matchingTableRow.total : item.totalMoney;
+
+    return {
+      monthKey: mKey,
+      month: mKey.split(' ')[0],
+      totalMoney: displayTotal,
+      growth: item.monthlyGrowthPercent,
+      isPositive: item.monthlyGrowthPercent >= 0,
+      isProjected: isProj,
+      income: item.totalIncome,
+      expenses: item.totalExpenses,
+      leftover: item.leftover,
+    };
+  });
+
+  const finalProjectedTotal = effectiveTableRows[effectiveTableRows.length - 1]?.total || consolidatedTotalMoney;
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 space-y-6 pb-12">
       {/* Header Banner */}
@@ -138,21 +305,14 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
         </div>
 
         {/* Month Dropdown */}
-        <div className="flex items-center gap-2 bg-white/90 p-2 rounded-2xl border border-[#11310C]/15 shadow-xs">
-          <Calendar className="w-4 h-4 text-[#C4C240]" />
-          <span className="text-xs font-bold text-[#11310C]/70">Mês do Resumo:</span>
-          <select
-            value={selectedMonth}
-            onChange={(e) => onSelectMonth(e.target.value)}
-            className="bg-transparent font-extrabold text-xs text-[#11310C] focus:outline-none cursor-pointer"
-          >
-            {monthsList.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CustomSelect
+          value={selectedMonth}
+          onChange={onSelectMonth}
+          options={monthsList}
+          icon={<Calendar className="w-4 h-4 text-[#C4C240]" />}
+          labelPrefix="Mês do Resumo:"
+          alignRight
+        />
       </div>
 
       {/* Main Metric Spotlight Cards Grid */}
@@ -283,22 +443,68 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
               Saldos reais das contas bancárias e simulação de crescimento em tempo real com acúmulo de juros compostos.
             </p>
           </div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#11310C]/10 text-[#11310C]">
-            <FileSpreadsheet className="w-4 h-4 text-[#C4C240]" />
-            Planilha Resumo Total
-          </span>
+          
+          {/* Toggle Switch: Rendimento vs Com Aporte */}
+          <div className="flex items-center p-1 rounded-2xl bg-[#11310C] text-[#FAFBF6] border border-[#11310C]/20 shadow-xs">
+            <button
+              type="button"
+              onClick={() => setIncludeAportes(false)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                !includeAportes
+                  ? 'bg-[#C4C240] text-[#11310C] shadow-xs'
+                  : 'text-white/70 hover:text-white'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              Apenas Rendimento
+            </button>
+            <button
+              type="button"
+              onClick={() => setIncludeAportes(true)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                includeAportes
+                  ? 'bg-[#C4C240] text-[#11310C] shadow-xs'
+                  : 'text-white/70 hover:text-white'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Com Aporte (+ Metas)
+            </button>
+          </div>
         </div>
 
-        {/* Compound Interest Explanation Badge */}
-        <div className="flex flex-wrap items-center gap-2 p-3 rounded-2xl bg-[#11310C]/5 border border-[#11310C]/10 text-xs text-[#11310C]">
-          <span className="inline-flex items-center gap-1 font-extrabold px-2.5 py-1 rounded-xl bg-[#11310C] text-[#C4C240] text-[11px] shadow-xs">
-            <TrendingUp className="w-3.5 h-3.5" />
-            Juros Compostos Ativos
-          </span>
-          <span className="font-semibold text-[#11310C]/80 text-[11px]">
-            As previsões aplicam acúmulo exponencial mês a mês: <strong>M(t) = M(t-1) × (1 + R)</strong> com base na rentabilidade individual (+102% CDI, +120% CDI, +121% CDI).
-          </span>
-        </div>
+        {/* Banner Explaining Current Projection Mode */}
+        {includeAportes ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#C4C240]/20 border border-[#C4C240]/50 text-xs text-[#11310C] animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-xl bg-[#11310C] text-[#C4C240]">
+                <Sparkles className="w-4 h-4" />
+              </span>
+              <div>
+                <p className="font-extrabold text-xs">
+                  Modo Com Aporte Ativo: Rendimento CDI + Depósitos de Metas
+                </p>
+                <p className="text-[11px] text-[#11310C]/80 font-medium">
+                  Injetando <strong>+{formatCurrency(activeTotalAporteMonthly)}/mês</strong> em aportes recorrentes de {goals.length} metas diretamente nas projeções.
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] uppercase font-bold text-[#11310C]/60 block">Patrimônio Projetado no Final</span>
+              <span className="text-sm font-black text-[#11310C]">{formatCurrency(finalProjectedTotal)}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2 p-3 rounded-2xl bg-[#11310C]/5 border border-[#11310C]/10 text-xs text-[#11310C]">
+            <span className="inline-flex items-center gap-1 font-extrabold px-2.5 py-1 rounded-xl bg-[#11310C] text-[#C4C240] text-[11px] shadow-xs">
+              <TrendingUp className="w-3.5 h-3.5" />
+              Juros Compostos Ativos
+            </span>
+            <span className="font-semibold text-[#11310C]/80 text-[11px]">
+              As previsões aplicam acúmulo exponencial mês a mês: <strong>M(t) = M(t-1) × (1 + R)</strong> com base na rentabilidade individual (+102% CDI, +120% CDI, +121% CDI).
+            </span>
+          </div>
+        )}
 
         <div className="overflow-x-auto rounded-2xl border border-[#11310C]/10 bg-white/80">
           <table className="w-full text-left text-xs border-collapse min-w-[900px]">
@@ -409,7 +615,7 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#11310C]/10 font-medium text-[#11310C]">
-              {tableRows.map((row) => {
+              {effectiveTableRows.map((row) => {
                 const isSelected = row.monthLabel === selectedMonth;
 
                 return (

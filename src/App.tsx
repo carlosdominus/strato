@@ -493,6 +493,7 @@ export function App() {
             onSelectMonth={setSelectedMonth}
             monthsList={monthsList}
             investments={investments}
+            goals={goals}
           />
         )}
 
@@ -529,6 +530,22 @@ export function App() {
             goals={goals}
             onAddGoal={handleAddGoal}
             onUpdateGoalProgress={handleUpdateGoalProgress}
+            accountOptions={
+              (currentMonthSummary.accountColumnsMeta && currentMonthSummary.accountColumnsMeta.length > 0)
+                ? currentMonthSummary.accountColumnsMeta.map((col) => ({
+                    name: col.name,
+                    label: col.name,
+                    balance: currentMonthSummary.accountBalances ? (currentMonthSummary.accountBalances[col.name] || 0) : 0,
+                  }))
+                : [
+                    { name: 'confrinho picpay pj (102%)', label: 'PicPay PJ (Cofrinho) - 102% CDI', balance: 68036.06 },
+                    { name: 'picpay pf (121%)', label: 'PicPay PF - 121% CDI', balance: 4330.15 },
+                    { name: 'cofrinho mercado pago (120%)', label: 'Mercado Pago (Cofrinho) - 120% CDI', balance: 2500.00 },
+                    { name: 'mercado pago (105%)', label: 'Mercado Pago - 105% CDI', balance: 3800.00 },
+                    { name: 'cofrinho pj nu (100%)', label: 'Nubank PJ (Cofrinho) - 100% CDI', balance: 5000.00 },
+                    { name: 'conta pf nu (0%)', label: 'Nubank PF - 0% CDI', balance: 1200.00 },
+                  ]
+            }
           />
         )}
 
