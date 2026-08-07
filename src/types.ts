@@ -119,6 +119,7 @@ export interface MonthSummaryData {
   accountBalances?: Record<string, number>; // Breakdown per account for this month
   accountDetailsRows?: AccountMonthRow[];
   accountColumnsMeta?: AccountColumnMeta[];
+  isProjected?: boolean;
 }
 
 export interface AIRecommendation {

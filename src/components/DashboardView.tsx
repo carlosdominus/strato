@@ -130,11 +130,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     fetchAiInsights();
   }, [selectedMonth, currentMonthData.totalIncome, currentMonthData.totalExpenses]);
 
-  // Transform monthly data for chart
-  const chartData = Object.keys(allMonthsData).map((m) => {
+  // Filter out future projected months from the main dashboard
+  const realMonthsKeys = Object.keys(allMonthsData).filter((m) => {
+    const item = allMonthsData[m];
+    if (item.isProjected) return false;
+    // Extra guard: exclude future projected months if flag isn't set
+    const lower = m.toLowerCase();
+    if (lower.includes('2027') || lower.includes('setembro 2026') || lower.includes('outubro 2026') || lower.includes('novembro 2026') || lower.includes('dezembro 2026')) {
+      return false;
+    }
+    return true;
+  });
+
+  // Transform monthly data for chart (Only real recorded months up to present)
+  const chartData = realMonthsKeys.map((m) => {
     const item = allMonthsData[m];
     return {
-      name: m.split(' ')[0], // "Março", "Abril"
+      name: m.split(' ')[0], // "Maio", "Junho", "Julho", "Agosto"
       Patrimonio: item.totalMoney,
       Renda: item.totalIncome,
       Gastos: item.totalExpenses,
@@ -225,13 +237,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     displayLeftover = displayIncome - displayExpenses;
   } else if (timeRange === '3-meses') {
     periodLabel = 'nos 3 Mêses';
-    const monthList = Object.values(allMonthsData);
+    const monthList = realMonthsKeys.slice(-3).map(k => allMonthsData[k]);
     displayIncome = monthList.reduce((sum: number, m) => sum + ((m as MonthSummaryData).totalIncome || 0), 0);
     displayExpenses = monthList.reduce((sum: number, m) => sum + ((m as MonthSummaryData).totalExpenses || 0), 0);
     displayLeftover = displayIncome - displayExpenses;
   } else if (timeRange === 'ano') {
     periodLabel = 'no Ano';
-    const monthList = Object.values(allMonthsData);
+    const monthList = realMonthsKeys.map(k => allMonthsData[k]);
     displayIncome = monthList.reduce((sum: number, m) => sum + ((m as MonthSummaryData).totalIncome || 0), 0);
     displayExpenses = monthList.reduce((sum: number, m) => sum + ((m as MonthSummaryData).totalExpenses || 0), 0);
     displayLeftover = displayIncome - displayExpenses;

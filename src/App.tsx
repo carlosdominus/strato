@@ -207,6 +207,7 @@ export function App() {
                 accountDetailsRows: allRows,
                 accountColumnsMeta: accountCols,
                 accountBalances: r.balances,
+                isProjected: !!r.isProjected,
               };
             });
           } else {

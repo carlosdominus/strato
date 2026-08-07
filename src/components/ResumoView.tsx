@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Calendar,
   Sparkles,
+  Car,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -279,7 +280,7 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
               Tabela de <span className="font-serif italic font-bold text-xl text-[#C4C240]">Contas & Previsão</span> de Rendimentos
             </h3>
             <p className="text-xs text-[#11310C]/60">
-              Detalhamento de cada conta bancária por mês e projeção de crescimento com base na rentabilidade CDI da conta.
+              Saldos reais das contas bancárias e simulação de crescimento em tempo real com acúmulo de juros compostos.
             </p>
           </div>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#11310C]/10 text-[#11310C]">
@@ -288,20 +289,118 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
           </span>
         </div>
 
+        {/* Compound Interest Explanation Badge */}
+        <div className="flex flex-wrap items-center gap-2 p-3 rounded-2xl bg-[#11310C]/5 border border-[#11310C]/10 text-xs text-[#11310C]">
+          <span className="inline-flex items-center gap-1 font-extrabold px-2.5 py-1 rounded-xl bg-[#11310C] text-[#C4C240] text-[11px] shadow-xs">
+            <TrendingUp className="w-3.5 h-3.5" />
+            Juros Compostos Ativos
+          </span>
+          <span className="font-semibold text-[#11310C]/80 text-[11px]">
+            As previsões aplicam acúmulo exponencial mês a mês: <strong>M(t) = M(t-1) × (1 + R)</strong> com base na rentabilidade individual (+102% CDI, +120% CDI, +121% CDI).
+          </span>
+        </div>
+
         <div className="overflow-x-auto rounded-2xl border border-[#11310C]/10 bg-white/80">
-          <table className="w-full text-left text-xs border-collapse min-w-[1100px]">
+          <table className="w-full text-left text-xs border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-[#11310C] text-[#FAFBF6] font-bold">
-                <th className="p-3 sticky left-0 bg-[#11310C] z-10 border-b border-white/10">Mês</th>
+                <th className="p-3 sticky left-0 bg-[#11310C] z-10 border-b border-white/10 text-center">Mês</th>
                 <th className="p-3 border-b border-white/10 text-center">Tipo</th>
                 {accountCols.map((col) => (
-                  <th key={col.name} className="p-3 border-b border-white/10 text-right whitespace-nowrap">
-                    <div>{col.name}</div>
-                    {col.ratePct > 0 && (
-                      <span className="text-[9px] font-normal text-[#C4C240] block">
-                        +{col.ratePct}% CDI
-                      </span>
-                    )}
+                  <th key={col.name} className="p-2 border-b border-white/10 text-center">
+                    {/* Compact Brand Logo / Badge Column Header */}
+                    <div className="flex flex-col items-center justify-center">
+                      {(() => {
+                        const lower = col.name.toLowerCase();
+                        const ratePct = col.ratePct;
+                        const isVariable = lower.includes('variavel') || lower.includes('vari)avel');
+                        const subText = ratePct > 0 ? `+${ratePct}% CDI` : isVariable ? 'variável' : '0% CDI';
+
+                        if (lower.includes('nu') || lower.includes('nubank')) {
+                          let suffix = 'PF';
+                          let isPiggy = lower.includes('cofrinho');
+                          let isInv = lower.includes('investimento');
+                          if (lower.includes('pj')) suffix = 'PJ';
+
+                          return (
+                            <div className="flex flex-col items-center justify-center p-0.5">
+                              <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-[#820AD1] text-white font-black text-xs shadow-xs tracking-tight">
+                                <span className="font-serif italic text-sm font-extrabold">nu</span>
+                                <span className="text-[10px] font-bold opacity-90">
+                                  {isPiggy ? '🐷' : isInv ? '📈' : suffix}
+                                </span>
+                              </div>
+                              <span className={`text-[10px] font-extrabold mt-1 whitespace-nowrap ${ratePct > 0 ? 'text-[#C4C240]' : isVariable ? 'text-sky-300' : 'text-white/60'}`}>
+                                {subText}
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        if (lower.includes('picpay')) {
+                          let suffix = 'PF';
+                          let isPiggy = lower.includes('cofrinho') || lower.includes('confrinho');
+                          if (lower.includes('pj')) suffix = 'PJ';
+
+                          return (
+                            <div className="flex flex-col items-center justify-center p-0.5">
+                              <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-[#11C76F] text-white font-black text-xs shadow-xs tracking-tight">
+                                <span className="font-sans font-black text-xs">P</span>
+                                <span className="text-[10px] font-bold opacity-90">
+                                  {isPiggy ? '🐷 PJ' : suffix}
+                                </span>
+                              </div>
+                              <span className={`text-[10px] font-extrabold mt-1 whitespace-nowrap ${ratePct > 0 ? 'text-[#C4C240]' : 'text-white/60'}`}>
+                                {subText}
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        if (lower.includes('mercado') || lower.includes('mp')) {
+                          let isPiggy = lower.includes('cofrinho');
+
+                          return (
+                            <div className="flex flex-col items-center justify-center p-0.5">
+                              <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-[#009EE3] text-white font-black text-xs shadow-xs tracking-tight">
+                                <span className="font-sans font-black text-xs">MP</span>
+                                <span className="text-[10px] font-bold opacity-90">
+                                  {isPiggy ? '🐷' : ''}
+                                </span>
+                              </div>
+                              <span className={`text-[10px] font-extrabold mt-1 whitespace-nowrap ${ratePct > 0 ? 'text-[#C4C240]' : 'text-white/60'}`}>
+                                {subText}
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        if (lower.includes('carro')) {
+                          return (
+                            <div className="flex flex-col items-center justify-center p-0.5">
+                              <div className="inline-flex items-center gap-1 px-2 py-1 rounded-xl bg-slate-800 text-amber-300 font-black text-xs shadow-xs tracking-tight">
+                                <Car className="w-3.5 h-3.5 text-amber-300" />
+                                <span className="text-[10px] font-extrabold">Carro</span>
+                              </div>
+                              <span className="text-[10px] font-extrabold text-white/60 mt-1 whitespace-nowrap">
+                                {subText}
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="flex flex-col items-center justify-center p-0.5">
+                            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-[#11310C] text-[#C4C240] font-black text-xs shadow-xs">
+                              {col.name.split(' ')[0]}
+                            </div>
+                            <span className={`text-[10px] font-extrabold mt-1 whitespace-nowrap ${ratePct > 0 ? 'text-[#C4C240]' : 'text-white/60'}`}>
+                              {subText}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </th>
                 ))}
                 <th className="p-3 border-b border-white/10 text-right font-black text-[#C4C240] whitespace-nowrap">
