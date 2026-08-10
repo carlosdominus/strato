@@ -489,9 +489,12 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-3 text-xs font-bold text-[#11310C]">
+          <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-[#11310C]">
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-md bg-[#11310C]" /> Lançamento Real
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-md bg-[#E13513]" /> Mês em Queda
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-md bg-[#C4C240]" /> Previsão CDI
