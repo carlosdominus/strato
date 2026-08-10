@@ -91,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
     matchedDebtors.length > 0;
 
   return (
-    <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#F8F9F3]/90 border-b border-[#11310C]/10 px-4 lg:px-8 py-3.5 transition-all">
+    <header className="sticky top-0 z-50 backdrop-blur-xl bg-[#F8F9F3]/90 border-b border-[#11310C]/10 px-4 lg:px-8 py-3.5 transition-all">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3 relative">
         {/* Brand & Logo */}
         <div className="flex items-center justify-between md:justify-start gap-4">

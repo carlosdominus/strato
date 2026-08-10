@@ -98,6 +98,11 @@ export interface AccountColumnMeta {
   ratePct: number; // e.g. 0, 100, 121, 102, 105, 120
 }
 
+export interface TaxSettings {
+  enabled: boolean;
+  percentage: number;
+}
+
 export interface AccountMonthRow {
   date: string;
   monthLabel: string; // e.g. "Maio 2026"

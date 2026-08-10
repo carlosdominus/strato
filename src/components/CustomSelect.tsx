@@ -52,7 +52,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   }, []);
 
   return (
-    <div className={`relative inline-block text-left ${className}`} ref={containerRef}>
+    <div className={`relative inline-block text-left ${isOpen ? 'z-50' : 'z-10'} ${className}`} ref={containerRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -72,7 +72,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
 
       {isOpen && (
         <div
-          className={`absolute top-full mt-1.5 min-w-[170px] max-w-[280px] max-h-60 overflow-y-auto bg-white/95 backdrop-blur-xl rounded-2xl border border-[#11310C]/15 shadow-2xl p-1.5 z-50 space-y-0.5 animate-in fade-in zoom-in-95 ${
+          className={`absolute top-full mt-1.5 min-w-[170px] max-w-[280px] max-h-60 overflow-y-auto bg-white/95 backdrop-blur-xl rounded-2xl border border-[#11310C]/15 shadow-2xl p-1.5 z-[100] space-y-0.5 animate-in fade-in zoom-in-95 ${
             alignRight ? 'right-0' : 'left-0'
           }`}
         >

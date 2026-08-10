@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Header } from './components/Header';
 import { NavTabs } from './components/NavTabs';
 import { ManualRegistrationModal } from './components/ManualRegistrationModal';
@@ -24,7 +25,7 @@ import {
   INITIAL_DEBTORS,
   INITIAL_FINANCIAL_GOALS,
 } from './data/mockData';
-import { Transaction, SpreadsheetConnection, FinancialGoal, Debtor, MonthSummaryData } from './types';
+import { Transaction, SpreadsheetConnection, FinancialGoal, Debtor, TaxSettings, MonthSummaryData } from './types';
 import { initAuth, googleSignIn, logout, getAccessToken } from './lib/firebase';
 import { User } from 'firebase/auth';
 
@@ -34,6 +35,18 @@ const getTabFromHash = (): string => {
   const validTabs = ['dashboard', 'resumo', 'investimentos', 'cartoes', 'dividas', 'metas', 'extrato', 'configuracoes'];
   return validTabs.includes(rawHash) ? rawHash : 'dashboard';
 };
+
+function loadFromStorage<T>(key: string, fallback: T): T {
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (e) {
+    console.warn(`Error reading localStorage key "${key}":`, e);
+  }
+  return fallback;
+}
 
 export function App() {
   const [activeTab, setActiveTab] = useState<string>(getTabFromHash);
@@ -60,19 +73,49 @@ export function App() {
     }
   };
 
-  // App domain state
-  const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
-  const [monthsData, setMonthsData] = useState(MOCK_MONTHS_SUMMARY);
-  const [creditCards, setCreditCards] = useState(MOCK_CREDIT_CARDS);
-  const [investments, setInvestments] = useState(MOCK_INVESTMENTS);
+  // App domain persistent state
+  const [transactions, setTransactions] = useState<Transaction[]>(() =>
+    loadFromStorage('strato_transactions', MOCK_TRANSACTIONS)
+  );
+  const [monthsData, setMonthsData] = useState(() =>
+    loadFromStorage('strato_months_data', MOCK_MONTHS_SUMMARY)
+  );
+  const [creditCards, setCreditCards] = useState(() =>
+    loadFromStorage('strato_credit_cards', MOCK_CREDIT_CARDS)
+  );
+  const [investments, setInvestments] = useState(() =>
+    loadFromStorage('strato_investments', MOCK_INVESTMENTS)
+  );
   const [debts] = useState(MOCK_DEBTS);
-  const [debtors, setDebtors] = useState<Debtor[]>(INITIAL_DEBTORS);
-  const [goals, setGoals] = useState<FinancialGoal[]>(INITIAL_FINANCIAL_GOALS);
+  const [debtors, setDebtors] = useState<Debtor[]>(() =>
+    loadFromStorage('strato_debtors', INITIAL_DEBTORS)
+  );
+  const [goals, setGoals] = useState<FinancialGoal[]>(() =>
+    loadFromStorage('strato_goals', INITIAL_FINANCIAL_GOALS)
+  );
   const [bankAccounts] = useState(INITIAL_BANK_ACCOUNTS);
-  const [subscriptions, setSubscriptions] = useState(MOCK_SUBSCRIPTIONS);
-  const [spreadsheets, setSpreadsheets] = useState<SpreadsheetConnection[]>(MOCK_SPREADSHEETS);
+  const [subscriptions, setSubscriptions] = useState(() =>
+    loadFromStorage('strato_subscriptions', MOCK_SUBSCRIPTIONS)
+  );
+  const [spreadsheets, setSpreadsheets] = useState<SpreadsheetConnection[]>(() =>
+    loadFromStorage('strato_spreadsheets', MOCK_SPREADSHEETS)
+  );
+  const [taxSettings, setTaxSettings] = useState<TaxSettings>(() =>
+    loadFromStorage('strato_tax_settings', { enabled: false, percentage: 6.0 })
+  );
   const [usdRate, setUsdRate] = useState<number>(5.50);
   const [netUsdRate, setNetUsdRate] = useState<number>(5.401);
+
+  // Auto-save effects for persistence across navigation/sessions
+  useEffect(() => { localStorage.setItem('strato_transactions', JSON.stringify(transactions)); }, [transactions]);
+  useEffect(() => { localStorage.setItem('strato_months_data', JSON.stringify(monthsData)); }, [monthsData]);
+  useEffect(() => { localStorage.setItem('strato_credit_cards', JSON.stringify(creditCards)); }, [creditCards]);
+  useEffect(() => { localStorage.setItem('strato_investments', JSON.stringify(investments)); }, [investments]);
+  useEffect(() => { localStorage.setItem('strato_debtors', JSON.stringify(debtors)); }, [debtors]);
+  useEffect(() => { localStorage.setItem('strato_goals', JSON.stringify(goals)); }, [goals]);
+  useEffect(() => { localStorage.setItem('strato_subscriptions', JSON.stringify(subscriptions)); }, [subscriptions]);
+  useEffect(() => { localStorage.setItem('strato_spreadsheets', JSON.stringify(spreadsheets)); }, [spreadsheets]);
+  useEffect(() => { localStorage.setItem('strato_tax_settings', JSON.stringify(taxSettings)); }, [taxSettings]);
 
   // Auth state
   const [googleUser, setGoogleUser] = useState<User | null>(null);
@@ -471,104 +514,119 @@ export function App() {
 
       {/* Main Content Area */}
       <main className="transition-all duration-300">
-        {activeTab === 'dashboard' && (
-          <DashboardView
-            currentMonthData={currentMonthSummary}
-            allMonthsData={monthsData}
-            recentTransactions={transactions}
-            creditCards={creditCards}
-            selectedMonth={selectedMonth}
-            onNavigateToTab={handleSelectTab}
-            onOpenManualModal={() => setIsManualModalOpen(true)}
-            onUpdateMonthData={handleUpdateMonthSummary}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+          >
+            {activeTab === 'dashboard' && (
+              <DashboardView
+                currentMonthData={currentMonthSummary}
+                allMonthsData={monthsData}
+                recentTransactions={transactions}
+                creditCards={creditCards}
+                selectedMonth={selectedMonth}
+                onNavigateToTab={handleSelectTab}
+                onOpenManualModal={() => setIsManualModalOpen(true)}
+                onUpdateMonthData={handleUpdateMonthSummary}
+                taxSettings={taxSettings}
+              />
+            )}
 
-        {activeTab === 'resumo' && (
-          <ResumoView
-            currentMonthData={currentMonthSummary}
-            allMonthsData={monthsData}
-            totalMoneySheet={totalMoneySheet}
-            selectedMonth={selectedMonth}
-            onSelectMonth={setSelectedMonth}
-            monthsList={monthsList}
-            investments={investments}
-            goals={goals}
-          />
-        )}
+            {activeTab === 'resumo' && (
+              <ResumoView
+                currentMonthData={currentMonthSummary}
+                allMonthsData={monthsData}
+                totalMoneySheet={totalMoneySheet}
+                selectedMonth={selectedMonth}
+                onSelectMonth={setSelectedMonth}
+                monthsList={monthsList}
+                investments={investments}
+                goals={goals}
+              />
+            )}
 
-        {activeTab === 'investimentos' && (
-          <InvestimentosView
-            investments={investments}
-            usdRate={usdRate}
-            netUsdRate={netUsdRate}
-            onOpenManualModal={() => setIsManualModalOpen(true)}
-          />
-        )}
+            {activeTab === 'investimentos' && (
+              <InvestimentosView
+                investments={investments}
+                usdRate={usdRate}
+                netUsdRate={netUsdRate}
+                onOpenManualModal={() => setIsManualModalOpen(true)}
+              />
+            )}
 
-        {activeTab === 'cartoes' && (
-          <CartoesAssinaturasView
-            creditCards={creditCards}
-            subscriptions={subscriptions}
-            onOpenManualModal={() => setIsManualModalOpen(true)}
-            onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
-            onUpdateCardLimit={handleUpdateCardLimit}
-            onToggleCardPaid={handleToggleCardPaid}
-          />
-        )}
+            {activeTab === 'cartoes' && (
+              <CartoesAssinaturasView
+                creditCards={creditCards}
+                subscriptions={subscriptions}
+                onOpenManualModal={() => setIsManualModalOpen(true)}
+                onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
+                onUpdateCardLimit={handleUpdateCardLimit}
+                onToggleCardPaid={handleToggleCardPaid}
+              />
+            )}
 
-        {activeTab === 'dividas' && (
-          <DividasView
-            debts={debts}
-            debtors={debtors}
-            onOpenManualModal={() => setIsManualModalOpen(true)}
-          />
-        )}
+            {activeTab === 'dividas' && (
+              <DividasView
+                debts={debts}
+                debtors={debtors}
+                onOpenManualModal={() => setIsManualModalOpen(true)}
+              />
+            )}
 
-        {activeTab === 'metas' && (
-          <MetasView
-            goals={goals}
-            onAddGoal={handleAddGoal}
-            onUpdateGoalProgress={handleUpdateGoalProgress}
-            accountOptions={
-              (currentMonthSummary.accountColumnsMeta && currentMonthSummary.accountColumnsMeta.length > 0)
-                ? currentMonthSummary.accountColumnsMeta.map((col) => ({
-                    name: col.name,
-                    label: col.name,
-                    balance: currentMonthSummary.accountBalances ? (currentMonthSummary.accountBalances[col.name] || 0) : 0,
-                  }))
-                : [
-                    { name: 'confrinho picpay pj (102%)', label: 'PicPay PJ (Cofrinho) - 102% CDI', balance: 68036.06 },
-                    { name: 'picpay pf (121%)', label: 'PicPay PF - 121% CDI', balance: 4330.15 },
-                    { name: 'cofrinho mercado pago (120%)', label: 'Mercado Pago (Cofrinho) - 120% CDI', balance: 2500.00 },
-                    { name: 'mercado pago (105%)', label: 'Mercado Pago - 105% CDI', balance: 3800.00 },
-                    { name: 'cofrinho pj nu (100%)', label: 'Nubank PJ (Cofrinho) - 100% CDI', balance: 5000.00 },
-                    { name: 'conta pf nu (0%)', label: 'Nubank PF - 0% CDI', balance: 1200.00 },
-                  ]
-            }
-          />
-        )}
+            {activeTab === 'metas' && (
+              <MetasView
+                goals={goals}
+                onAddGoal={handleAddGoal}
+                onUpdateGoalProgress={handleUpdateGoalProgress}
+                accountOptions={
+                  (currentMonthSummary.accountColumnsMeta && currentMonthSummary.accountColumnsMeta.length > 0)
+                    ? currentMonthSummary.accountColumnsMeta.map((col) => ({
+                        name: col.name,
+                        label: col.name,
+                        balance: currentMonthSummary.accountBalances ? (currentMonthSummary.accountBalances[col.name] || 0) : 0,
+                      }))
+                    : [
+                        { name: 'confrinho picpay pj (102%)', label: 'PicPay PJ (Cofrinho) - 102% CDI', balance: 68036.06 },
+                        { name: 'picpay pf (121%)', label: 'PicPay PF - 121% CDI', balance: 4330.15 },
+                        { name: 'cofrinho mercado pago (120%)', label: 'Mercado Pago (Cofrinho) - 120% CDI', balance: 2500.00 },
+                        { name: 'mercado pago (105%)', label: 'Mercado Pago - 105% CDI', balance: 3800.00 },
+                        { name: 'cofrinho pj nu (100%)', label: 'Nubank PJ (Cofrinho) - 100% CDI', balance: 5000.00 },
+                        { name: 'conta pf nu (0%)', label: 'Nubank PF - 0% CDI', balance: 1200.00 },
+                      ]
+                }
+              />
+            )}
 
-        {activeTab === 'extrato' && (
-          <ExtratoView
-            transactions={transactions}
-            onOpenManualModal={() => setIsManualModalOpen(true)}
-            selectedMonth={selectedMonth}
-          />
-        )}
+            {activeTab === 'extrato' && (
+              <ExtratoView
+                transactions={transactions}
+                onOpenManualModal={() => setIsManualModalOpen(true)}
+                selectedMonth={selectedMonth}
+                onMonthChange={setSelectedMonth}
+                monthsList={monthsList}
+              />
+            )}
 
-        {activeTab === 'configuracoes' && (
-          <ConfiguracoesView
-            googleUser={googleUser}
-            isLoggingIn={isLoggingIn}
-            onGoogleLogin={handleGoogleLogin}
-            onGoogleLogout={handleGoogleLogout}
-            spreadsheets={spreadsheets}
-            onAddSpreadsheet={handleAddSpreadsheet}
-            onImportCsvTransactions={handleImportCsvTransactions}
-            onRefreshSheets={() => fetchLiveSheets()}
-          />
-        )}
+            {activeTab === 'configuracoes' && (
+              <ConfiguracoesView
+                googleUser={googleUser}
+                isLoggingIn={isLoggingIn}
+                onGoogleLogin={handleGoogleLogin}
+                onGoogleLogout={handleGoogleLogout}
+                spreadsheets={spreadsheets}
+                onAddSpreadsheet={handleAddSpreadsheet}
+                onImportCsvTransactions={handleImportCsvTransactions}
+                onRefreshSheets={() => fetchLiveSheets()}
+                taxSettings={taxSettings}
+                onUpdateTaxSettings={setTaxSettings}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Manual Entry Registration Modal */}

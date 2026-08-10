@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import {
   TrendingUp,
   ArrowUpRight,
@@ -25,9 +26,10 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts';
-import { MonthSummaryData, Transaction, CreditCardSheet, AIRecommendation } from '../types';
+import { MonthSummaryData, Transaction, CreditCardSheet, AIRecommendation, TaxSettings } from '../types';
 import { formatCurrency, formatPercent, formatDateBR } from '../utils/formatters';
 import { getTransactionAllocatedMonthLabel } from '../utils/sheetParser';
+import { Receipt } from 'lucide-react';
 
 const CustomAreaTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -55,6 +57,7 @@ interface DashboardViewProps {
   onNavigateToTab: (tabId: string) => void;
   onOpenManualModal: () => void;
   onUpdateMonthData?: (monthKey: string, updated: Partial<MonthSummaryData>) => void;
+  taxSettings?: TaxSettings;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -66,6 +69,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateToTab,
   onOpenManualModal,
   onUpdateMonthData,
+  taxSettings,
 }) => {
   const [timeRange, setTimeRange] = useState<'este-mes' | 'semana' | '3-meses' | 'ano' | 'personalizado'>('este-mes');
   const [customRange, setCustomRange] = useState<{ start: string; end: string }>({ start: '2026-08-01', end: '2026-08-31' });
@@ -260,6 +264,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     displayLeftover = displayIncome - displayExpenses;
   }
 
+  // Tax Calculations
+  const taxPct = taxSettings?.percentage || 0;
+  const isTaxActive = taxSettings?.enabled && taxPct > 0;
+  const computedTaxAmount = isTaxActive ? displayIncome * (taxPct / 100) : 0;
+  const computedNetIncome = isTaxActive ? displayIncome - computedTaxAmount : displayIncome;
+  const computedNetLeftover = isTaxActive ? computedNetIncome - displayExpenses : displayLeftover;
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 space-y-6 pb-12">
       {/* Abacaxi Pay Inspired Welcome & Range Selector */}
@@ -402,6 +413,100 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
+      {/* Tax Calculation Breakdown Card (When Enabled in Settings) */}
+      {isTaxActive && (
+        <div className="glass-card rounded-3xl p-6 border border-white/90 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#11310C]/10">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-2xl bg-[#11310C] text-[#C4C240] flex items-center justify-center font-bold shadow-xs">
+                <Receipt className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base text-[#11310C]">
+                  Cálculo de Imposto sobre Renda ({taxPct}%)
+                </h3>
+                <p className="text-xs text-[#11310C]/70 font-medium">
+                  Desconto de {taxPct}% aplicado sobre os ganhos totais {periodLabel}
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] font-extrabold px-3 py-1 rounded-full bg-[#11310C] text-[#C4C240] uppercase tracking-wider self-start sm:self-auto shadow-xs">
+              Imposto Ativo
+            </span>
+          </div>
+
+          {/* 3 Centered Sub-cards: Imposto (Spending Style), Renda Líquida (Clear Green Style), Sobra Líquida (Sobra do Mês Style) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+            {/* Card 1: Imposto (Mesmo estilo do container de Gastos) */}
+            <div className="glass-card rounded-3xl p-5 border border-white/90 relative overflow-hidden group hover:border-[#E13513]/30 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider">
+                    Imposto ({taxPct}%)
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-[#FDECE9] text-[#E13513] flex items-center justify-center">
+                    <ArrowDownRight className="w-4 h-4 text-[#E13513]" />
+                  </div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-[#E13513]">
+                  - {formatCurrency(computedTaxAmount)}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#FDECE9] text-[#E13513]">
+                  Desconto Renda
+                </span>
+                <span className="text-[11px] font-medium text-[#11310C]/60">{taxPct}% sobre ganhos</span>
+              </div>
+            </div>
+
+            {/* Card 2: Renda Líquida (Mesmo estilo do container de Ganhos/Verde Claro) */}
+            <div className="glass-card rounded-3xl p-5 border border-white/90 relative overflow-hidden group hover:border-[#C4C240]/40 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-bold text-[#11310C]/70 uppercase tracking-wider">
+                    Renda Líquida
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                    <ArrowUpRight className="w-4 h-4 text-emerald-700" />
+                  </div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
+                  {formatCurrency(computedNetIncome)}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#C4C240]/25 text-[#11310C]">
+                  Pós-Impostos
+                </span>
+                <span className="text-[11px] font-medium text-[#11310C]/60">ganho efetivo</span>
+              </div>
+            </div>
+
+            {/* Card 3: Sobra Líquida (Mesmo estilo do container da Sobra do Mês / Dark Green) */}
+            <div className="glass-dark-card rounded-3xl p-5 text-[#FAFBF6] space-y-3 relative overflow-hidden glaze-shine flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-extrabold uppercase tracking-widest text-[#C4C240] flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-[#C4C240]" />
+                    Sobra Líquida
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#C4C240] text-[#11310C]">
+                    LÍQUIDO
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mt-2">
+                  {formatCurrency(computedNetLeftover)}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-2 border-t border-white/10 text-xs text-[#FAFBF6]/80 font-medium">
+                <span>Após impostos e despesas {periodLabel}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content Area: Chart + AI Insights Widget */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Interactive Wealth Chart (2 Cols) */}
@@ -429,7 +534,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="h-72 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" debounce={100}>
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorSobra" x1="0" y1="0" x2="0" y2="1">
@@ -449,9 +554,39 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#11310C', fontWeight: 600 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#11310C' }} tickFormatter={(v) => `R$${v/1000}k`} />
                 <Tooltip content={<CustomAreaTooltip />} />
-                <Area type="monotone" dataKey="Renda" stroke="#11310C" strokeWidth={3} fillOpacity={1} fill="url(#colorRenda)" />
-                <Area type="monotone" dataKey="Gastos" stroke="#E13513" strokeWidth={3} fillOpacity={1} fill="url(#colorGastos)" />
-                <Area type="monotone" dataKey="Sobra" stroke="#C4C240" strokeWidth={3} fillOpacity={1} fill="url(#colorSobra)" />
+                <Area
+                  type="monotone"
+                  dataKey="Renda"
+                  stroke="#11310C"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorRenda)"
+                  isAnimationActive={true}
+                  animationDuration={800}
+                  animationEasing="ease-out"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="Gastos"
+                  stroke="#E13513"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorGastos)"
+                  isAnimationActive={true}
+                  animationDuration={800}
+                  animationEasing="ease-out"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="Sobra"
+                  stroke="#C4C240"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorSobra)"
+                  isAnimationActive={true}
+                  animationDuration={800}
+                  animationEasing="ease-out"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>

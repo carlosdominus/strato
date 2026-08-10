@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import {
   TrendingUp,
   ArrowUpRight,
@@ -35,23 +36,68 @@ interface ResumoViewProps {
   goals?: FinancialGoal[];
 }
 
-const CustomBarTooltip = ({ active, payload, label }: any) => {
+const CustomBarTooltip = ({ active, payload, label, liveInvestmentsTotal = 0, includeAportes = false }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
-    const val = payload[0].value;
+    const currentBarVal = Number(payload[0].value);
+    const baseTotal = Number(data.baseTotalMoney ?? currentBarVal);
+    const withAportesTotal = Number(data.withAportesTotalMoney ?? currentBarVal);
+
+    const isProjected = data.isProjected;
+    const monthName = (data.month || label || '').toUpperCase();
+    
+    // Extract year from monthKey or calculate based on projected status (e.g., 2027 for projected January)
+    const monthKeyStr = String(data.monthKey || '');
+    const parts = monthKeyStr.split(' ');
+    const yearStr = parts.length > 1 ? parts[1] : (isProjected && monthName.includes('JAN') ? '2027' : '2026');
+    
+    // Total Consolidado = Dinheiro Total do Mês (contas/previsão CDI) + Soma dos Investimentos de hoje
+    const totalConsolidadoBase = baseTotal + liveInvestmentsTotal;
+    const totalConsolidadoComAportes = withAportesTotal + liveInvestmentsTotal;
+
     return (
-      <div className="bg-[#11310C] border border-[#C4C240] px-4 py-3 rounded-2xl shadow-2xl text-[#FAFBF6] space-y-1 z-50">
-        <div className="flex items-center gap-2">
-          <p className="text-xs font-bold text-[#C4C240]">{label}</p>
-          {data.isProjected && (
-            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">
-              Previsão CDI
-            </span>
+      <div className="bg-[#11310C] border border-[#C4C240] px-4 py-3.5 rounded-2xl shadow-2xl text-[#FAFBF6] space-y-2 z-50 min-w-[280px]">
+        {/* Header line with Month and Year Badge */}
+        <div className="flex items-center justify-between gap-2 border-b border-white/15 pb-2">
+          <p className="text-xs font-black text-[#C4C240] uppercase tracking-wider">{monthName}</p>
+          <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-md bg-[#C4C240]/20 text-[#C4C240] border border-[#C4C240]/30">
+            {yearStr}
+          </span>
+        </div>
+
+        <div className="space-y-1.5 text-xs font-semibold">
+          {/* 1. Dinheiro Total */}
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-white/80">Dinheiro Total :</span>
+            <span className="text-[#C4C240] font-black">{formatCurrency(baseTotal)}</span>
+          </div>
+
+          {/* 2. Total Consolidado (Dinheiro Total + Investimentos de Hoje) */}
+          <div className="flex items-center justify-between gap-3 pt-1 border-t border-white/10">
+            <span className="text-white/90 font-bold">Total Consolidado :</span>
+            <span className="text-white font-black">{formatCurrency(totalConsolidadoBase)}</span>
+          </div>
+          <div className="text-[10px] text-white/60 font-normal italic leading-tight pl-1">
+            (Contas do mês: {formatCurrency(baseTotal)} + Investimentos de hoje: {formatCurrency(liveInvestmentsTotal)})
+          </div>
+
+          {/* 3 & 4. Aportes & Consolidado com Aportes - Shown when includeAportes switch is active */}
+          {includeAportes && (
+            <>
+              <div className="pt-1.5 border-t border-white/10 flex items-center justify-between gap-3 text-[#C4C240]">
+                <span className="font-bold">Com Aportes (+ Metas) :</span>
+                <span className="font-black">{formatCurrency(withAportesTotal)}</span>
+              </div>
+              <div className="pt-1.5 border-t border-white/10 flex items-center justify-between gap-3 text-emerald-300">
+                <span className="font-bold">Consolidado com Aportes :</span>
+                <span className="font-black">{formatCurrency(totalConsolidadoComAportes)}</span>
+              </div>
+              <div className="text-[10px] text-emerald-200/80 font-normal italic leading-tight pl-1">
+                (Soma total: Contas/CDI + Aportes: {formatCurrency(withAportesTotal)} + Investimentos de hoje: {formatCurrency(liveInvestmentsTotal)})
+              </div>
+            </>
           )}
         </div>
-        <p className="text-xs font-extrabold text-white">
-          Dinheiro Total : <span className="text-[#C4C240] font-black">{formatCurrency(Number(val))}</span>
-        </p>
       </div>
     );
   }
@@ -211,10 +257,8 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
   // Total monthly contribution across all goals
   const activeTotalAporteMonthly = goals.reduce((acc, g) => acc + (g.monthlyContribution || 0), 0);
 
-  // Compute effective table rows (applying compounding + monthly aportes when toggle is active)
-  const effectiveTableRows = useMemo(() => {
-    if (!includeAportes) return tableRows;
-
+  // Compute rows WITH monthly aportes explicitly so both base and with-aporte values are available to chart tooltip
+  const withAportesTableRows = useMemo(() => {
     const firstProjIndex = tableRows.findIndex((r) => r.isProjected);
     if (firstProjIndex <= 0) return tableRows;
 
@@ -263,23 +307,32 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
     }
 
     return newRows;
-  }, [tableRows, includeAportes, goals, accountCols]);
+  }, [tableRows, goals, accountCols]);
 
-  // Monthly total money chart data synced with effectiveTableRows
+  const effectiveTableRows = includeAportes ? withAportesTableRows : tableRows;
+
+  // Monthly total money chart data synced with effectiveTableRows & withAportesTableRows
   const monthlyTotalsChart = Object.keys(allMonthsData).map((mKey) => {
     const item = allMonthsData[mKey];
     const isProj = mKey.toLowerCase().includes('setembro') || mKey.toLowerCase().includes('outubro') || mKey.toLowerCase().includes('novembro') || mKey.toLowerCase().includes('dezembro') || mKey.includes('2027');
 
-    const matchingTableRow = effectiveTableRows.find(
+    const matchingBaseRow = tableRows.find(
+      (tr) => tr.monthLabel.toLowerCase() === mKey.toLowerCase()
+    );
+    const matchingWithAportesRow = withAportesTableRows.find(
       (tr) => tr.monthLabel.toLowerCase() === mKey.toLowerCase()
     );
 
-    const displayTotal = matchingTableRow ? matchingTableRow.total : item.totalMoney;
+    const baseTotal = matchingBaseRow ? matchingBaseRow.total : item.totalMoney;
+    const withAportesTotal = matchingWithAportesRow ? matchingWithAportesRow.total : item.totalMoney;
+    const displayTotal = includeAportes ? withAportesTotal : baseTotal;
 
     return {
       monthKey: mKey,
       month: mKey.split(' ')[0],
       totalMoney: displayTotal,
+      baseTotalMoney: baseTotal,
+      withAportesTotalMoney: withAportesTotal,
       growth: item.monthlyGrowthPercent,
       isPositive: item.monthlyGrowthPercent >= 0,
       isProjected: isProj,
@@ -294,7 +347,7 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
   return (
     <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 space-y-6 pb-12">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card rounded-3xl p-6 border border-white/90">
+      <div className="relative z-20 flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card rounded-3xl p-6 border border-white/90">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#11310C]">
             Total do <span className="font-serif italic font-bold text-3xl sm:text-4xl text-[#C4C240]">Dinheiro</span> do Mês
@@ -304,15 +357,48 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
           </p>
         </div>
 
-        {/* Month Dropdown */}
-        <CustomSelect
-          value={selectedMonth}
-          onChange={onSelectMonth}
-          options={monthsList}
-          icon={<Calendar className="w-4 h-4 text-[#C4C240]" />}
-          labelPrefix="Mês do Resumo:"
-          alignRight
-        />
+        {/* Controls: Projeção Mode Toggle & Month Dropdown */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Toggle Switch: Rendimento vs Com Aporte */}
+          <div className="flex items-center p-1 rounded-2xl bg-[#11310C] text-[#FAFBF6] border border-[#11310C]/20 shadow-xs">
+            <button
+              type="button"
+              onClick={() => setIncludeAportes(false)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                !includeAportes
+                  ? 'bg-[#C4C240] text-[#11310C] shadow-xs'
+                  : 'text-white/70 hover:text-white'
+              }`}
+              title="Apenas projeção de rendimento dos juros CDI"
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              Apenas Rendimento
+            </button>
+            <button
+              type="button"
+              onClick={() => setIncludeAportes(true)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                includeAportes
+                  ? 'bg-[#C4C240] text-[#11310C] shadow-xs'
+                  : 'text-white/70 hover:text-white'
+              }`}
+              title="Incluir depósitos/aportes mensais recorrentes das metas"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Com Aporte
+            </button>
+          </div>
+
+          {/* Month Dropdown */}
+          <CustomSelect
+            value={selectedMonth}
+            onChange={onSelectMonth}
+            options={monthsList}
+            icon={<Calendar className="w-4 h-4 text-[#C4C240]" />}
+            labelPrefix="Mês do Resumo:"
+            alignRight
+          />
+        </div>
       </div>
 
       {/* Main Metric Spotlight Cards Grid */}
@@ -393,7 +479,7 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
 
       {/* Monthly Total Money Growth Chart */}
       <div className="glass-card rounded-3xl p-6 border border-white/90 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#11310C]/10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-[#11310C]/10">
           <div>
             <h3 className="text-lg font-extrabold text-[#11310C]">
               Gráfico Mensal do <span className="font-serif italic font-bold text-xl text-[#C4C240]">Dinheiro Total</span> (Histórico & Previsão)
@@ -402,24 +488,58 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
               Acompanhe a evolução do seu dinheiro total com os valores reais da planilha e as projeções de rendimento CDI
             </p>
           </div>
+
           <div className="flex items-center gap-3 text-xs font-bold text-[#11310C]">
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-md bg-[#11310C]" /> Lançamento Real
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-md bg-[#C4C240]" /> Previsão Rendimentos
+              <span className="w-3 h-3 rounded-md bg-[#C4C240]" /> Previsão CDI
             </span>
           </div>
         </div>
 
-        <div className="h-80 w-full pt-4">
-          <ResponsiveContainer width="100%" height="100%">
+        {/* Dynamic Mode Explanatory Indicator above Chart */}
+        {includeAportes ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-[#C4C240]/20 border border-[#C4C240]/50 text-xs text-[#11310C]">
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded-xl bg-[#11310C] text-[#C4C240]">
+                <Sparkles className="w-3.5 h-3.5" />
+              </span>
+              <p className="font-extrabold text-xs">
+                Gráfico refletindo Modo Com Aporte: Rendimento CDI + Depósitos de Metas (+{formatCurrency(activeTotalAporteMonthly)}/mês)
+              </p>
+            </div>
+            <span className="text-xs font-black text-[#11310C]">
+              Patrimônio Final em Dez/Proj: {formatCurrency(finalProjectedTotal)}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 p-2.5 rounded-2xl bg-[#11310C]/5 border border-[#11310C]/10 text-xs text-[#11310C]">
+            <span className="inline-flex items-center gap-1 font-extrabold px-2 py-0.5 rounded-lg bg-[#11310C] text-[#C4C240] text-[10px]">
+              <TrendingUp className="w-3 h-3" />
+              Apenas Rendimento
+            </span>
+            <span className="text-[11px] text-[#11310C]/80 font-medium">
+              Gráfico aplicando simulação de juros compostos CDI sobre saldos atuais das contas.
+            </span>
+          </div>
+        )}
+
+        <div className="h-80 w-full pt-2">
+          <ResponsiveContainer width="100%" height="100%" debounce={100}>
             <BarChart data={monthlyTotalsChart} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#11310C" strokeOpacity={0.08} />
               <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#11310C', fontWeight: 600 }} />
               <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#11310C' }} tickFormatter={(v) => `R$${v/1000}k`} />
-              <Tooltip content={<CustomBarTooltip />} />
-              <Bar dataKey="totalMoney" radius={[12, 12, 0, 0]}>
+              <Tooltip content={<CustomBarTooltip liveInvestmentsTotal={liveInvestmentsTotal} includeAportes={includeAportes} />} />
+              <Bar
+                dataKey="totalMoney"
+                radius={[12, 12, 0, 0]}
+                isAnimationActive={true}
+                animationDuration={800}
+                animationEasing="ease-out"
+              >
                 {monthlyTotalsChart.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
@@ -442,34 +562,6 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
             <p className="text-xs text-[#11310C]/60">
               Saldos reais das contas bancárias e simulação de crescimento em tempo real com acúmulo de juros compostos.
             </p>
-          </div>
-          
-          {/* Toggle Switch: Rendimento vs Com Aporte */}
-          <div className="flex items-center p-1 rounded-2xl bg-[#11310C] text-[#FAFBF6] border border-[#11310C]/20 shadow-xs">
-            <button
-              type="button"
-              onClick={() => setIncludeAportes(false)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
-                !includeAportes
-                  ? 'bg-[#C4C240] text-[#11310C] shadow-xs'
-                  : 'text-white/70 hover:text-white'
-              }`}
-            >
-              <TrendingUp className="w-3.5 h-3.5" />
-              Apenas Rendimento
-            </button>
-            <button
-              type="button"
-              onClick={() => setIncludeAportes(true)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
-                includeAportes
-                  ? 'bg-[#C4C240] text-[#11310C] shadow-xs'
-                  : 'text-white/70 hover:text-white'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              Com Aporte (+ Metas)
-            </button>
           </div>
         </div>
 
