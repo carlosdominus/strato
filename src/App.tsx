@@ -318,8 +318,6 @@ export function App() {
     }
   }, [userAccessToken]);
 
-  const [syncNotice, setSyncNotice] = useState<string | null>(null);
-
   useEffect(() => {
     const unsubscribe = initAuth(
       (user, token) => {
@@ -345,8 +343,6 @@ export function App() {
         if (now - lastAutoSync > 2500) {
           lastAutoSync = now;
           fetchLiveSheets();
-          setSyncNotice('Planilhas sincronizadas com a planilha mais recente!');
-          setTimeout(() => setSyncNotice(null), 3000);
         }
       }
     };
@@ -538,21 +534,6 @@ export function App() {
         onGoogleLogin={handleGoogleLogin}
         onRefreshSheets={() => fetchLiveSheets()}
       />
-
-      {/* Auto-Sync Toast Notification */}
-      <AnimatePresence>
-        {syncNotice && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="fixed top-16 right-6 z-50 bg-[#11310C] text-[#FAFBF6] border border-[#C4C240] px-4 py-2.5 rounded-2xl shadow-xl text-xs font-bold flex items-center gap-2"
-          >
-            <span className="w-2 h-2 rounded-full bg-[#C4C240] animate-ping" />
-            <span>{syncNotice}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Main Navigation Tabs */}
       <NavTabs activeTab={activeTab} onSelectTab={handleSelectTab} />
