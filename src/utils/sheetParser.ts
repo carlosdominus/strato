@@ -323,9 +323,14 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
       let csvText = '';
       let fetchSuccess = false;
 
+      const cacheBustUrl = (u: string) => {
+        const sep = u.includes('?') ? '&' : '?';
+        return `${u}${sep}_t=${Date.now()}`;
+      };
+
       // Primary fetch try
       try {
-        const response = await fetch(sheet.url, { headers: customHeaders });
+        const response = await fetch(cacheBustUrl(sheet.url), { headers: customHeaders, cache: 'no-store' });
         if (response.status === 200) {
           csvText = await response.text();
           fetchSuccess = true;
@@ -338,7 +343,7 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
       if (!fetchSuccess) {
         const gvizUrl = sheet.url.replace('/export?format=csv', '/gviz/tq?tqx=out:csv');
         try {
-          const resp = await fetch(gvizUrl, { headers: customHeaders });
+          const resp = await fetch(cacheBustUrl(gvizUrl), { headers: customHeaders, cache: 'no-store' });
           if (resp.ok) {
             csvText = await resp.text();
             fetchSuccess = true;
@@ -346,8 +351,8 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
         } catch {
           // Tertiary fallback via public CORS proxy
           try {
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(sheet.url)}`;
-            const resp = await fetch(proxyUrl);
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(cacheBustUrl(sheet.url))}`;
+            const resp = await fetch(proxyUrl, { cache: 'no-store' });
             if (resp.ok) {
               csvText = await resp.text();
               fetchSuccess = true;

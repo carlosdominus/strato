@@ -318,6 +318,8 @@ export function App() {
     }
   }, [userAccessToken]);
 
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
+
   useEffect(() => {
     const unsubscribe = initAuth(
       (user, token) => {
@@ -332,6 +334,30 @@ export function App() {
       }
     );
     return () => unsubscribe();
+  }, [fetchLiveSheets]);
+
+  // Auto-refresh data as soon as the user opens/focuses the Chrome tab
+  useEffect(() => {
+    let lastAutoSync = 0;
+    const handleTabActive = () => {
+      if (document.visibilityState === 'visible') {
+        const now = Date.now();
+        if (now - lastAutoSync > 2500) {
+          lastAutoSync = now;
+          fetchLiveSheets();
+          setSyncNotice('Planilhas sincronizadas com a planilha mais recente!');
+          setTimeout(() => setSyncNotice(null), 3000);
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleTabActive);
+    document.addEventListener('visibilitychange', handleTabActive);
+
+    return () => {
+      window.removeEventListener('focus', handleTabActive);
+      document.removeEventListener('visibilitychange', handleTabActive);
+    };
   }, [fetchLiveSheets]);
 
   const handleGoogleLogin = async () => {
@@ -507,7 +533,26 @@ export function App() {
         investments={investments}
         creditCards={creditCards}
         debtors={debtors}
+        googleUser={googleUser}
+        isLoggingIn={isLoggingIn}
+        onGoogleLogin={handleGoogleLogin}
+        onRefreshSheets={() => fetchLiveSheets()}
       />
+
+      {/* Auto-Sync Toast Notification */}
+      <AnimatePresence>
+        {syncNotice && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="fixed top-16 right-6 z-50 bg-[#11310C] text-[#FAFBF6] border border-[#C4C240] px-4 py-2.5 rounded-2xl shadow-xl text-xs font-bold flex items-center gap-2"
+          >
+            <span className="w-2 h-2 rounded-full bg-[#C4C240] animate-ping" />
+            <span>{syncNotice}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Navigation Tabs */}
       <NavTabs activeTab={activeTab} onSelectTab={handleSelectTab} />
