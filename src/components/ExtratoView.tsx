@@ -259,7 +259,11 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
         {/* Top Indicators & Actions */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Total Indicators */}
-          <div className="flex items-center gap-3 px-4 py-2 bg-white/80 rounded-2xl border border-[#11310C]/10 text-xs font-bold shadow-xs">
+          <div className="flex flex-wrap items-center gap-3 px-4 py-2 bg-white/80 rounded-2xl border border-[#11310C]/10 text-xs font-bold shadow-xs">
+            <span className="text-[#11310C]/70" title="Contagem total de lançamentos">
+              <strong className="text-[#11310C]">{filteredTransactions.length}</strong> de <strong className="text-[#11310C]">{transactions.length}</strong> registros
+            </span>
+            <span className="text-[#11310C]/20">|</span>
             <span className="flex items-center gap-1 text-emerald-700" title="Total de Entradas">
               <ArrowUpRight className="w-4 h-4 text-emerald-600" />
               {formatCurrency(totalIncomeInView)}
@@ -391,6 +395,32 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
                 ...paymentMethods.map((pm) => ({ value: pm, label: pm })),
               ]}
             />
+
+            {/* Quick Month Scope Toggle */}
+            <div className="h-10 flex items-center gap-1 p-1 bg-[#11310C]/05 border border-[#11310C]/12 rounded-2xl shrink-0">
+              <button
+                onClick={() => setFilterMonthScope('selecionado')}
+                className={`h-8 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center ${
+                  filterMonthScope === 'selecionado'
+                    ? 'bg-[#11310C] text-[#FAFBF6] shadow-xs'
+                    : 'text-[#11310C]/70 hover:text-[#11310C]'
+                }`}
+                title="Mostrar apenas transações do mês selecionado"
+              >
+                Mês Selecionado
+              </button>
+              <button
+                onClick={() => setFilterMonthScope('todos')}
+                className={`h-8 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center justify-center ${
+                  filterMonthScope === 'todos'
+                    ? 'bg-[#11310C] text-[#FAFBF6] shadow-xs'
+                    : 'text-[#11310C]/70 hover:text-[#11310C]'
+                }`}
+                title="Mostrar todas as transações de todas as datas"
+              >
+                Todos os Meses ({transactions.length})
+              </button>
+            </div>
           </div>
 
           {/* Type Segmented Control */}

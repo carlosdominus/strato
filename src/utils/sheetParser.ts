@@ -1,10 +1,49 @@
 // Client and server shared Google Sheets parser utility
 export function parseCsvToRows(csvText: string): string[][] {
-  const lines = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  return lines.map((line) => {
-    const cols = line.match(/(".*?"|[^",;\t]+)(?=\s*[,;\t]|\s*$)/g) || line.split(/[,;\t]/);
-    return cols.map((c) => c.replace(/^["']|["']$/g, '').trim());
-  });
+  if (!csvText) return [];
+  const lines = csvText.split(/\r?\n/);
+  const result: string[][] = [];
+
+  for (const line of lines) {
+    if (!line.trim()) continue;
+
+    let delimiter = ',';
+    if (!line.includes(',') && line.includes(';')) {
+      delimiter = ';';
+    } else if (!line.includes(',') && !line.includes(';') && line.includes('\t')) {
+      delimiter = '\t';
+    }
+
+    const row: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      const nextChar = line[i + 1];
+
+      if (char === '"' || char === "'") {
+        if (inQuotes && nextChar === char) {
+          current += char;
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === delimiter && !inQuotes) {
+        row.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    row.push(current.trim());
+
+    if (row.some((cell) => cell.length > 0)) {
+      result.push(row);
+    }
+  }
+
+  return result;
 }
 
 export function parseCleanNumber(val: string): number {
@@ -85,20 +124,35 @@ export function getMonthLabelFromIsoDate(isoDateStr: string): string {
 
 export function convertBrOrIsoToIsoDate(rawStr?: string): string | null {
   if (!rawStr) return null;
-  const s = rawStr.trim();
+  let s = rawStr.trim();
+  if (!s) return null;
+
+  if (s.includes(' ')) s = s.split(' ')[0];
+  if (s.includes('T')) s = s.split('T')[0];
+
   if (s.includes('/')) {
     const parts = s.split('/');
     if (parts.length === 3) {
-      const day = parts[0].padStart(2, '0');
-      const month = parts[1].padStart(2, '0');
-      const year = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+      const day = parts[0].trim().padStart(2, '0');
+      const month = parts[1].trim().padStart(2, '0');
+      let year = parts[2].trim();
+      if (year.length === 2) year = `20${year}`;
       return `${year}-${month}-${day}`;
     }
   }
   if (s.includes('-')) {
     const parts = s.split('-');
     if (parts.length === 3) {
-      return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+      let p0 = parts[0].trim();
+      let p1 = parts[1].trim().padStart(2, '0');
+      let p2 = parts[2].trim().padStart(2, '0');
+      if (p0.length === 4) {
+        return `${p0}-${p1}-${p2}`;
+      } else if (p2.length === 4) {
+        return `${p2}-${p1}-${p0.padStart(2, '0')}`;
+      } else if (p0.length === 2 && p2.length === 2) {
+        return `20${p2}-${p1}-${p0.padStart(2, '0')}`;
+      }
     }
   }
   return null;
@@ -387,28 +441,30 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
         const dataRows = rows.slice(1);
 
         if (sheet.id === 'sheet-extrato') {
-          dataRows.forEach((cols, index) => {
-            if (cols.length < 2 || !cols[0]) return;
+          let lastValidIsoDate = '2026-08-01';
 
-            const rawDate = cols[0] || '';
-            let isoDate = '2026-08-01';
-            if (rawDate.includes('/')) {
-              const parts = rawDate.split('/');
-              if (parts.length === 3) {
-                const day = parts[0].padStart(2, '0');
-                const month = parts[1].padStart(2, '0');
-                const year = parts[2];
-                isoDate = `${year}-${month}-${day}`;
-              }
-            } else if (rawDate.includes('-')) {
-              isoDate = rawDate;
+          dataRows.forEach((cols, index) => {
+            if (!cols || cols.length === 0) return;
+
+            const rawDate = (cols[0] || '').trim();
+            if (rawDate.toLowerCase().startsWith('data') || rawDate.toLowerCase().startsWith('date')) return;
+
+            let isoDate = convertBrOrIsoToIsoDate(rawDate);
+            if (!isoDate) {
+              isoDate = lastValidIsoDate;
+            } else {
+              lastValidIsoDate = isoDate;
             }
 
             const rawValStr = cols[1] || '0';
             const rawAmount = parseCleanNumber(rawValStr);
-            const description = cols[2] || 'Sem descrição';
-            const account = cols[3] || 'Geral';
-            const paymentMethod = cols[4] || 'PIX';
+            const description = (cols[2] || '').trim() || 'Sem descrição';
+
+            // Skip line if completely empty
+            if (!description && rawAmount === 0 && !rawDate) return;
+
+            const account = (cols[3] || '').trim() || 'Geral';
+            const paymentMethod = (cols[4] || '').trim() || 'PIX';
             const explicitDueDateStr = cols[5] ? cols[5].trim() : undefined;
 
             const isIncome = rawAmount > 0;

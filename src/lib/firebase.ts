@@ -1,9 +1,9 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
 
-// Safely load firebase config if file exists without failing build when deleted
-const firebaseConfigFiles = import.meta.glob('../../firebase-applet-config.json', { eager: true }) as Record<string, any>;
-const firebaseConfig = firebaseConfigFiles['../../firebase-applet-config.json']?.default || {
+import configData from '../../firebase-applet-config.json';
+
+const firebaseConfig = configData || {
   apiKey: "demo-key",
   authDomain: "demo.firebaseapp.com",
   projectId: "demo-project",
