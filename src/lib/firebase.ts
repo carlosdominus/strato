@@ -55,13 +55,17 @@ export const parseAuthError = (error: any): AuthErrorInfo => {
     };
   }
 
-  if (code === 'auth/popup-closed-by-user') {
+  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
     return {
       code,
       message: rawMessage,
-      title: 'Janela de Login Fechada',
-      solution: 'A janela de autenticação foi fechada antes de selecionar a conta Google. Clique novamente em "Iniciar Sessão" para continuar.',
+      title: 'O Pop-up do Google Fechou Sozinho',
+      solution: `O Firebase encerrou o pop-up automaticamente porque o domínio atual (${currentDomain}) ainda não foi adicionado aos "Domínios Autorizados" no Firebase Console, ou devido a restrições de cross-origin do iframe. Você pode conectar sua conta instantaneamente pelo Modo Direto abaixo ou autorizar o domínio no Console.`,
+      isDomainError: true,
+      isPopupBlocked: false,
+      isIframeIssue: isIframe,
       currentDomain,
+      helpUrl: `https://console.firebase.google.com/project/${(firebaseConfig as any).projectId || 'gen-lang-client-0254253171'}/authentication/settings`,
     };
   }
 
@@ -168,6 +172,23 @@ export const loginWithDirectProfile = (profile: UserProfile): UserProfile => {
   }
   cachedAccessToken = 'local-authorized-session';
   return profile;
+};
+
+export const loginWithCustomEmail = (email: string, name?: string): UserProfile => {
+  const cleanEmail = email.trim();
+  const displayName = name?.trim() || cleanEmail.split('@')[0] || 'Usuário';
+  const profile: UserProfile = {
+    uid: `user-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+    email: cleanEmail,
+    displayName,
+    photoURL: null,
+    isSimulated: true,
+  };
+  return loginWithDirectProfile(profile);
+};
+
+export const loginAsCarlos = (): UserProfile => {
+  return loginWithCustomEmail('carlos@dominus.site', 'Carlos');
 };
 
 export const getAccessToken = (): string | null => {

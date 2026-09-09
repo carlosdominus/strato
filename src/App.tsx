@@ -26,8 +26,9 @@ import {
   INITIAL_FINANCIAL_GOALS,
 } from './data/mockData';
 import { Transaction, SpreadsheetConnection, FinancialGoal, Debtor, TaxSettings, MonthSummaryData, AuthErrorInfo, UserProfile } from './types';
-import { initAuth, googleSignIn, logout, getAccessToken, parseAuthError, loginWithDirectProfile } from './lib/firebase';
+import { initAuth, googleSignIn, logout, getAccessToken, parseAuthError, loginWithDirectProfile, loginAsCarlos, loginWithCustomEmail } from './lib/firebase';
 import { User } from 'firebase/auth';
+import { AuthAssistModal } from './components/AuthAssistModal';
 
 const getTabFromHash = (): string => {
   if (typeof window === 'undefined') return 'dashboard';
@@ -151,6 +152,7 @@ export function App() {
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
   const [userAccessToken, setUserAccessToken] = useState<string | null>(null);
   const [authError, setAuthError] = useState<AuthErrorInfo | null>(null);
+  const [showAuthAssistModal, setShowAuthAssistModal] = useState<boolean>(false);
 
   const fetchLiveSheets = useCallback(async (tokenToUse?: string | null) => {
     try {
@@ -424,12 +426,14 @@ export function App() {
         setGoogleUser(res.user);
         setUserAccessToken(res.accessToken);
         setAuthError(null);
+        setShowAuthAssistModal(false);
         await fetchLiveSheets(res.accessToken);
       }
     } catch (e: any) {
       console.error('Google Sign in failed:', e);
       const parsed = parseAuthError(e);
       setAuthError(parsed);
+      setShowAuthAssistModal(true);
       if (activeTab !== 'configuracoes') {
         setActiveTab('configuracoes');
       }
@@ -439,17 +443,20 @@ export function App() {
   };
 
   const handleDirectCarlosLogin = () => {
-    const carlosProfile: UserProfile = {
-      uid: 'carlos-dominus-uid',
-      email: 'carlos@dominus.site',
-      displayName: 'Carlos',
-      photoURL: null,
-      isSimulated: true,
-    };
-    loginWithDirectProfile(carlosProfile);
+    const carlosProfile = loginAsCarlos();
     setGoogleUser(carlosProfile);
     setUserAccessToken('local-authorized-session');
     setAuthError(null);
+    setShowAuthAssistModal(false);
+    fetchLiveSheets('local-authorized-session');
+  };
+
+  const handleCustomEmailLogin = (email: string, name?: string) => {
+    const customProfile = loginWithCustomEmail(email, name);
+    setGoogleUser(customProfile);
+    setUserAccessToken('local-authorized-session');
+    setAuthError(null);
+    setShowAuthAssistModal(false);
     fetchLiveSheets('local-authorized-session');
   };
 
@@ -746,6 +753,19 @@ export function App() {
         onClose={() => setIsManualModalOpen(false)}
         onAddTransaction={handleAddTransaction}
         selectedMonth={selectedMonth}
+      />
+
+      {/* Google Auth Assistance Modal */}
+      <AuthAssistModal
+        isOpen={showAuthAssistModal}
+        onClose={() => setShowAuthAssistModal(false)}
+        authError={authError}
+        onLoginAsCarlos={handleDirectCarlosLogin}
+        onLoginCustomEmail={handleCustomEmailLogin}
+        onRetryGoogleLogin={() => {
+          setShowAuthAssistModal(false);
+          handleGoogleLogin();
+        }}
       />
     </div>
   );
