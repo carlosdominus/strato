@@ -170,3 +170,23 @@ export interface FinancialGoal {
   notes?: string;
 }
 
+export interface AuthErrorInfo {
+  code: string;
+  message: string;
+  title: string;
+  solution: string;
+  isDomainError?: boolean;
+  isPopupBlocked?: boolean;
+  isIframeIssue?: boolean;
+  currentDomain?: string;
+  helpUrl?: string;
+}
+
+export interface UserProfile {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  isSimulated?: boolean;
+}
+

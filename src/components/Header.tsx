@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { TomatoIcon } from './TomatoIcon';
-import { Transaction, Investment, CreditCardSheet, Debtor } from '../types';
+import { Transaction, Investment, CreditCardSheet, Debtor, UserProfile } from '../types';
 import { formatCurrency } from '../utils/formatters';
 import { getCurrentMonthLabel } from '../utils/sheetParser';
 
@@ -35,7 +35,7 @@ interface HeaderProps {
   investments?: Investment[];
   creditCards?: CreditCardSheet[];
   debtors?: Debtor[];
-  googleUser?: User | null;
+  googleUser?: User | UserProfile | null;
   isLoggingIn?: boolean;
   onGoogleLogin?: () => void;
   onRefreshSheets?: () => void;
@@ -298,14 +298,34 @@ export const Header: React.FC<HeaderProps> = ({
             <RefreshCw className={`w-4 h-4 text-[#C4C240] ${isSyncing ? 'animate-spin' : ''}`} />
           </button>
 
-          {/* Quick Settings Icon */}
-          <button
-            onClick={() => onNavigateToTab('configuracoes')}
-            className="p-2 rounded-2xl bg-white/90 hover:bg-white border border-[#11310C]/15 text-[#11310C] shadow-xs cursor-pointer transition-all"
-            title="Configurações & Login Google"
-          >
-            <Settings className="w-4 h-4 text-[#11310C]" />
-          </button>
+          {/* Quick Settings & Google Profile Indicator */}
+          {googleUser ? (
+            <button
+              onClick={() => onNavigateToTab('configuracoes')}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl bg-white/90 hover:bg-white border border-[#11310C]/15 text-[#11310C] text-xs font-bold transition-all shadow-xs cursor-pointer"
+              title={`Conectado: ${googleUser.displayName || googleUser.email} (Abrir Configurações)`}
+            >
+              {googleUser.photoURL ? (
+                <img src={googleUser.photoURL} alt="User" className="w-5 h-5 rounded-full object-cover" />
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-[#11310C] text-[#C4C240] text-[10px] font-extrabold flex items-center justify-center">
+                  {(googleUser.email ? googleUser.email[0] : 'G').toUpperCase()}
+                </div>
+              )}
+              <span className="hidden sm:inline max-w-[85px] truncate text-[11px]">
+                {googleUser.displayName || googleUser.email?.split('@')[0]}
+              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            </button>
+          ) : (
+            <button
+              onClick={() => onNavigateToTab('configuracoes')}
+              className="p-2 rounded-2xl bg-white/90 hover:bg-white border border-[#11310C]/15 text-[#11310C] shadow-xs cursor-pointer transition-all"
+              title="Configurações & Login Google"
+            >
+              <Settings className="w-4 h-4 text-[#11310C]" />
+            </button>
+          )}
 
           {/* Registro Manual Button */}
           <button

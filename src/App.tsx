@@ -25,8 +25,8 @@ import {
   INITIAL_DEBTORS,
   INITIAL_FINANCIAL_GOALS,
 } from './data/mockData';
-import { Transaction, SpreadsheetConnection, FinancialGoal, Debtor, TaxSettings, MonthSummaryData } from './types';
-import { initAuth, googleSignIn, logout, getAccessToken } from './lib/firebase';
+import { Transaction, SpreadsheetConnection, FinancialGoal, Debtor, TaxSettings, MonthSummaryData, AuthErrorInfo, UserProfile } from './types';
+import { initAuth, googleSignIn, logout, getAccessToken, parseAuthError, loginWithDirectProfile } from './lib/firebase';
 import { User } from 'firebase/auth';
 
 const getTabFromHash = (): string => {
@@ -147,9 +147,10 @@ export function App() {
   useEffect(() => { localStorage.setItem('strato_tax_settings', JSON.stringify(taxSettings)); }, [taxSettings]);
 
   // Auth state
-  const [googleUser, setGoogleUser] = useState<User | null>(null);
+  const [googleUser, setGoogleUser] = useState<User | UserProfile | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
   const [userAccessToken, setUserAccessToken] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<AuthErrorInfo | null>(null);
 
   const fetchLiveSheets = useCallback(async (tokenToUse?: string | null) => {
     try {
@@ -416,24 +417,47 @@ export function App() {
 
   const handleGoogleLogin = async () => {
     setIsLoggingIn(true);
+    setAuthError(null);
     try {
       const res = await googleSignIn();
       if (res) {
         setGoogleUser(res.user);
         setUserAccessToken(res.accessToken);
+        setAuthError(null);
         await fetchLiveSheets(res.accessToken);
       }
     } catch (e: any) {
       console.error('Google Sign in failed:', e);
+      const parsed = parseAuthError(e);
+      setAuthError(parsed);
+      if (activeTab !== 'configuracoes') {
+        setActiveTab('configuracoes');
+      }
     } finally {
       setIsLoggingIn(false);
     }
+  };
+
+  const handleDirectCarlosLogin = () => {
+    const carlosProfile: UserProfile = {
+      uid: 'carlos-dominus-uid',
+      email: 'carlos@dominus.site',
+      displayName: 'Carlos',
+      photoURL: null,
+      isSimulated: true,
+    };
+    loginWithDirectProfile(carlosProfile);
+    setGoogleUser(carlosProfile);
+    setUserAccessToken('local-authorized-session');
+    setAuthError(null);
+    fetchLiveSheets('local-authorized-session');
   };
 
   const handleGoogleLogout = async () => {
     await logout();
     setGoogleUser(null);
     setUserAccessToken(null);
+    setAuthError(null);
     fetchLiveSheets(null);
   };
 
@@ -707,6 +731,9 @@ export function App() {
                 onRefreshSheets={() => fetchLiveSheets()}
                 taxSettings={taxSettings}
                 onUpdateTaxSettings={setTaxSettings}
+                authError={authError}
+                onClearAuthError={() => setAuthError(null)}
+                onDirectCarlosLogin={handleDirectCarlosLogin}
               />
             )}
           </motion.div>
