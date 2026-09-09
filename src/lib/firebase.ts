@@ -3,13 +3,27 @@ import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User 
 import { getFirestore } from 'firebase/firestore';
 import { AuthErrorInfo, UserProfile } from '../types';
 
-import configData from '../../firebase-applet-config.json';
-
-const firebaseConfig = configData || {
-  apiKey: "demo-key",
-  authDomain: "demo.firebaseapp.com",
-  projectId: "demo-project",
+const DEFAULT_FIREBASE_CONFIG = {
+  projectId: "gen-lang-client-0254253171",
+  appId: "1:1012412258634:web:8d847454c03ef2048049b3",
+  apiKey: "AIzaSyBdGBtXNGWUpr8GFB-jJUhFDrSj7v8ImeE",
+  authDomain: "gen-lang-client-0254253171.firebaseapp.com",
   firestoreDatabaseId: "ai-studio-stratov1atimpost-522b2a22-f49d-4598-a983-177aafd53d38",
+  storageBucket: "gen-lang-client-0254253171.firebasestorage.app",
+  messagingSenderId: "1012412258634",
+  oAuthClientId: "1012412258634-6v59dnnht5r83j2nc1uav2cji0jkigoi.apps.googleusercontent.com",
+};
+
+const metaEnv = (import.meta as any)?.env || {};
+
+const firebaseConfig = {
+  apiKey: metaEnv.VITE_FIREBASE_API_KEY || DEFAULT_FIREBASE_CONFIG.apiKey,
+  authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || DEFAULT_FIREBASE_CONFIG.authDomain,
+  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || DEFAULT_FIREBASE_CONFIG.projectId,
+  appId: metaEnv.VITE_FIREBASE_APP_ID || DEFAULT_FIREBASE_CONFIG.appId,
+  storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || DEFAULT_FIREBASE_CONFIG.storageBucket,
+  messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || DEFAULT_FIREBASE_CONFIG.messagingSenderId,
+  firestoreDatabaseId: DEFAULT_FIREBASE_CONFIG.firestoreDatabaseId,
 };
 
 const app = initializeApp(firebaseConfig);
