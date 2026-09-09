@@ -11,7 +11,7 @@ import { DividasView } from './components/DividasView';
 import { MetasView } from './components/MetasView';
 import { ConfiguracoesView } from './components/ConfiguracoesView';
 import { ExtratoView } from './components/ExtratoView';
-import { parseAndFetchAllSheets, calculateEffectiveInvoiceDate, getTransactionAllocatedMonthLabel } from './utils/sheetParser';
+import { parseAndFetchAllSheets, calculateEffectiveInvoiceDate, getTransactionAllocatedMonthLabel, getCurrentMonthLabel } from './utils/sheetParser';
 
 import {
   MOCK_TRANSACTIONS,
@@ -50,7 +50,7 @@ function loadFromStorage<T>(key: string, fallback: T): T {
 
 export function App() {
   const [activeTab, setActiveTab] = useState<string>(getTabFromHash);
-  const [selectedMonth, setSelectedMonth] = useState<string>('Agosto 2026');
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => getCurrentMonthLabel());
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
 
@@ -60,6 +60,9 @@ export function App() {
       const currentTab = getTabFromHash();
       if (currentTab !== activeTab) {
         setActiveTab(currentTab);
+        if (currentTab === 'extrato') {
+          setSelectedMonth(getCurrentMonthLabel());
+        }
       }
     };
     window.addEventListener('hashchange', handleHashChange);
@@ -68,6 +71,9 @@ export function App() {
 
   const handleSelectTab = (tabId: string) => {
     setActiveTab(tabId);
+    if (tabId === 'extrato') {
+      setSelectedMonth(getCurrentMonthLabel());
+    }
     if (window.location.hash !== `#/${tabId}`) {
       window.location.hash = `#/${tabId}`;
     }
@@ -446,7 +452,7 @@ export function App() {
   };
 
   const monthsList = Object.keys(monthsData);
-  const currentMonthSummary = monthsData[selectedMonth] || monthsData['Agosto 2026'];
+  const currentMonthSummary = monthsData[selectedMonth] || monthsData[getCurrentMonthLabel()] || monthsData['Setembro 2026'] || monthsData['Agosto 2026'];
 
   // Add new manual transaction and dynamically update monthly totals!
   const handleAddTransaction = (newTx: Omit<Transaction, 'id'>) => {

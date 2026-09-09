@@ -21,6 +21,7 @@ import { User } from 'firebase/auth';
 import { TomatoIcon } from './TomatoIcon';
 import { Transaction, Investment, CreditCardSheet, Debtor } from '../types';
 import { formatCurrency } from '../utils/formatters';
+import { getCurrentMonthLabel } from '../utils/sheetParser';
 
 interface HeaderProps {
   selectedMonth: string;
@@ -252,9 +253,10 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {isMonthOpen && (
-              <div className="absolute top-full right-0 mt-2 w-44 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#11310C]/15 shadow-2xl p-1.5 z-50 space-y-0.5 animate-in fade-in zoom-in-95">
+              <div className="absolute top-full right-0 mt-2 w-48 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#11310C]/15 shadow-2xl p-1.5 z-50 space-y-0.5 animate-in fade-in zoom-in-95">
                 {monthsList.map((m) => {
                   const isSelected = m === selectedMonth;
+                  const isCurrent = m === getCurrentMonthLabel();
                   return (
                     <button
                       key={m}
@@ -268,7 +270,16 @@ export const Header: React.FC<HeaderProps> = ({
                           : 'text-[#11310C] hover:bg-[#F8F9F3]'
                       }`}
                     >
-                      <span>{m}</span>
+                      <span className="flex items-center gap-1.5">
+                        <span>{m}</span>
+                        {isCurrent && (
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black uppercase tracking-wider ${
+                            isSelected ? 'bg-[#C4C240] text-[#11310C]' : 'bg-emerald-100 text-emerald-800'
+                          }`}>
+                            Atual
+                          </span>
+                        )}
+                      </span>
                       {isSelected && <Check className="w-3.5 h-3.5 text-[#C4C240]" />}
                     </button>
                   );

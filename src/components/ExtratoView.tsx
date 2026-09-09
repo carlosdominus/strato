@@ -12,10 +12,11 @@ import {
   SlidersHorizontal,
   ChevronLeft,
   ChevronRight,
+  Calendar,
 } from 'lucide-react';
 import { Transaction, TransactionType } from '../types';
 import { formatCurrency, formatDateBR } from '../utils/formatters';
-import { getTransactionAllocatedMonthLabel, getMonthLabelFromIsoDate } from '../utils/sheetParser';
+import { getTransactionAllocatedMonthLabel, getMonthLabelFromIsoDate, getCurrentMonthLabel } from '../utils/sheetParser';
 import { CustomSelect } from './CustomSelect';
 
 interface ExtratoViewProps {
@@ -48,6 +49,15 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
   onMonthChange,
   monthsList = DEFAULT_MONTHS_LIST,
 }) => {
+  const currentMonthLabel = getCurrentMonthLabel();
+
+  // Automatically ensure ExtratoView initializes on the current month on mount
+  useEffect(() => {
+    if (onMonthChange && selectedMonth !== currentMonthLabel) {
+      onMonthChange(currentMonthLabel);
+    }
+  }, []);
+
   // Persistent filter states via localStorage (only reference mode, month scope & view style persist)
   const [filterType, setFilterType] = useState<'todos' | TransactionType>('todos');
   const [filterCategory, setFilterCategory] = useState<string>('todas');
@@ -301,24 +311,46 @@ export const ExtratoView: React.FC<ExtratoViewProps> = ({
         {/* ROW 1: Navigation, Search Input, and Layout/Config View Controls */}
         <div className="flex flex-col md:flex-row items-center gap-3">
           {/* Month Navigator */}
-          <div className="h-10 flex items-center justify-between gap-1 px-2 bg-[#11310C]/05 border border-[#11310C]/12 rounded-2xl shrink-0 w-full md:w-auto">
-            <button
-              onClick={handlePrevMonth}
-              className="p-1.5 rounded-xl hover:bg-white text-[#11310C]/70 hover:text-[#11310C] transition-all cursor-pointer"
-              title="Mês Anterior"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-xs font-black text-[#11310C] px-3 text-center tracking-tight whitespace-nowrap min-w-[130px]">
-              {formatPluggyMonthLabel(selectedMonth)}
-            </span>
-            <button
-              onClick={handleNextMonth}
-              className="p-1.5 rounded-xl hover:bg-white text-[#11310C]/70 hover:text-[#11310C] transition-all cursor-pointer"
-              title="Próximo Mês"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+          <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
+            <div className="h-10 flex items-center justify-between gap-1 px-2 bg-[#11310C]/05 border border-[#11310C]/12 rounded-2xl flex-1 md:flex-initial">
+              <button
+                onClick={handlePrevMonth}
+                className="p-1.5 rounded-xl hover:bg-white text-[#11310C]/70 hover:text-[#11310C] transition-all cursor-pointer"
+                title="Mês Anterior"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-black text-[#11310C] px-3 text-center tracking-tight whitespace-nowrap min-w-[130px]">
+                {formatPluggyMonthLabel(selectedMonth)}
+              </span>
+              <button
+                onClick={handleNextMonth}
+                className="p-1.5 rounded-xl hover:bg-white text-[#11310C]/70 hover:text-[#11310C] transition-all cursor-pointer"
+                title="Próximo Mês"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Current Month badge or quick jump button */}
+            {selectedMonth === currentMonthLabel ? (
+              <div
+                className="hidden sm:flex items-center gap-1.5 px-3 h-10 bg-emerald-500/10 text-emerald-800 border border-emerald-500/20 rounded-2xl text-[11px] font-extrabold whitespace-nowrap select-none"
+                title="Você está visualizando o mês atual"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Mês Atual</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => onMonthChange?.(currentMonthLabel)}
+                className="h-10 px-3 rounded-2xl bg-[#11310C] text-[#FAFBF6] hover:bg-[#11310C]/90 text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer whitespace-nowrap"
+                title={`Voltar para o mês atual (${currentMonthLabel})`}
+              >
+                <Calendar className="w-3.5 h-3.5 text-[#C4C240]" />
+                <span>Mês Atual</span>
+              </button>
+            )}
           </div>
 
           {/* Search Field (Centered / Flex-1) */}

@@ -109,8 +109,15 @@ const MONTH_NAMES_PT = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
+export function getCurrentMonthLabel(): string {
+  const now = new Date();
+  const m = now.getMonth();
+  const y = now.getFullYear();
+  return `${MONTH_NAMES_PT[m]} ${y}`;
+}
+
 export function getMonthLabelFromIsoDate(isoDateStr: string): string {
-  if (!isoDateStr) return 'Agosto 2026';
+  if (!isoDateStr) return getCurrentMonthLabel();
   const parts = isoDateStr.split('-');
   if (parts.length >= 2) {
     const y = parts[0];
@@ -119,7 +126,7 @@ export function getMonthLabelFromIsoDate(isoDateStr: string): string {
       return `${MONTH_NAMES_PT[m]} ${y}`;
     }
   }
-  return 'Agosto 2026';
+  return getCurrentMonthLabel();
 }
 
 export function convertBrOrIsoToIsoDate(rawStr?: string): string | null {
@@ -179,7 +186,7 @@ export function getTransactionAllocatedMonthLabel(tx: {
   if (tx.date) {
     return getMonthLabelFromIsoDate(tx.date);
   }
-  return 'Agosto 2026';
+  return getCurrentMonthLabel();
 }
 
 export function calculateEffectiveInvoiceDate(
@@ -884,8 +891,8 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
     };
 
     if (tx.type === 'expense') {
-      // If effective expense month is "Agosto 2026", add to current month expense!
-      if (timing.effectiveMonthLabel === 'Agosto 2026') {
+      // If effective expense month is the current active month, add to current month expense!
+      if (timing.effectiveMonthLabel === getCurrentMonthLabel()) {
         effectiveTotalExpensesCurrentMonth += tx.amount;
       }
     }
@@ -893,10 +900,11 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
     return updatedTx;
   });
 
-  // Calculate current invoice sums for each credit card for August 2026
+  // Calculate current invoice sums for each credit card for current active month
+  const currentMonthLabel = getCurrentMonthLabel();
   parsedCards = parsedCards.map((card) => {
     const cardInvoicesSum = parsedExtratoTransactions
-      .filter((tx) => tx.type === 'expense' && tx.isCreditCard && tx.cardName === card.name && tx.effectiveMonthLabel === 'Agosto 2026')
+      .filter((tx) => tx.type === 'expense' && tx.isCreditCard && tx.cardName === card.name && tx.effectiveMonthLabel === currentMonthLabel)
       .reduce((sum, tx) => sum + tx.amount, 0);
 
     return {
