@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import {
   TrendingUp,
@@ -16,6 +16,7 @@ import {
   X,
   Sliders,
   Check,
+  Filter,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -31,17 +32,48 @@ import { formatCurrency, formatPercent, formatDateBR } from '../utils/formatters
 import { getTransactionAllocatedMonthLabel } from '../utils/sheetParser';
 import { Receipt } from 'lucide-react';
 
+const MONTH_ORDER: Record<string, number> = {
+  janeiro: 1, jan: 1,
+  fevereiro: 2, fev: 2,
+  março: 3, marco: 3, mar: 3,
+  abril: 4, abr: 4,
+  maio: 5, mai: 5,
+  junho: 6, jun: 6,
+  julho: 7, jul: 7,
+  agosto: 8, ago: 8,
+  setembro: 9, set: 9,
+  outubro: 10, out: 10,
+  novembro: 11, nov: 11,
+  dezembro: 12, dez: 12,
+};
+
+const getMonthSortValue = (monthStr: string): number => {
+  const parts = (monthStr || '').toLowerCase().trim().split(' ');
+  const name = parts[0] || '';
+  const year = parts[1] ? parseInt(parts[1], 10) : 2026;
+  const monthNum = MONTH_ORDER[name] || 1;
+  return year * 100 + monthNum;
+};
+
 const CustomAreaTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
+    const fullName = payload[0]?.payload?.fullName || label;
     return (
-      <div className="bg-[#11310C] border border-[#C4C240] p-3 rounded-2xl shadow-xl text-[#FAFBF6] space-y-1 z-50">
-        <p className="text-xs font-bold text-[#C4C240]">{label}</p>
-        {payload.map((entry: any, index: number) => (
-          <p key={index} className="text-xs font-semibold text-white flex items-center justify-between gap-3">
-            <span>{entry.name}:</span>
-            <span className="font-extrabold text-[#C4C240]">{formatCurrency(Number(entry.value))}</span>
-          </p>
-        ))}
+      <div className="bg-[#11310C] border border-[#C4C240] p-3.5 rounded-2xl shadow-xl text-[#FAFBF6] space-y-1.5 z-50 min-w-[210px]">
+        <div className="flex items-center justify-between gap-2 border-b border-white/15 pb-1.5">
+          <p className="text-xs font-black text-[#C4C240] uppercase tracking-wider">{fullName}</p>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#C4C240]/20 text-[#C4C240]">
+            Visão Consolidada
+          </span>
+        </div>
+        <div className="space-y-1 pt-1">
+          {payload.map((entry: any, index: number) => (
+            <p key={index} className="text-xs font-semibold text-white flex items-center justify-between gap-3">
+              <span className="text-white/80">{entry.name}:</span>
+              <span className="font-extrabold text-[#C4C240]">{formatCurrency(Number(entry.value))}</span>
+            </p>
+          ))}
+        </div>
       </div>
     );
   }
@@ -134,29 +166,129 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     fetchAiInsights();
   }, [selectedMonth, currentMonthData.totalIncome, currentMonthData.totalExpenses]);
 
-  // Filter out future projected months from the main dashboard
-  const realMonthsKeys = Object.keys(allMonthsData).filter((m) => {
-    const item = allMonthsData[m];
-    if (item.isProjected) return false;
-    // Extra guard: exclude future projected months if flag isn't set
-    const lower = m.toLowerCase();
-    if (lower.includes('2027') || lower.includes('setembro 2026') || lower.includes('outubro 2026') || lower.includes('novembro 2026') || lower.includes('dezembro 2026')) {
-      return false;
+  // Ensure Setembro 2026 is always available in effectiveMonthsData
+  const effectiveMonthsData = useMemo(() => {
+    const map = { ...allMonthsData };
+    if (!map['Setembro 2026']) {
+      const prevTotal = map['Agosto 2026']?.totalMoney || 62798.77;
+      map['Setembro 2026'] = {
+        month: 'Setembro 2026',
+        totalMoney: prevTotal,
+        totalIncome: 0,
+        totalExpenses: 0,
+        leftover: 0,
+        totalInvestments: map['Agosto 2026']?.totalInvestments || 0,
+        totalDebts: 0,
+        activeSubscriptionsCount: 4,
+        monthlyGrowthPercent: 1.67,
+        isProjected: false,
+      };
     }
-    return true;
-  });
+    return map;
+  }, [allMonthsData]);
 
-  // Transform monthly data for chart (Only real recorded months up to present)
-  const chartData = realMonthsKeys.map((m) => {
-    const item = allMonthsData[m];
-    return {
-      name: m.split(' ')[0], // "Maio", "Junho", "Julho", "Agosto"
-      Patrimonio: item.totalMoney,
-      Renda: item.totalIncome,
-      Gastos: item.totalExpenses,
-      Sobra: item.leftover,
-    };
-  });
+  const allChronologicalMonths = useMemo(() => {
+    return Object.keys(effectiveMonthsData).sort((a, b) => getMonthSortValue(a) - getMonthSortValue(b));
+  }, [effectiveMonthsData]);
+
+  // Real recorded months up to present (including September 2026, which is the current active month)
+  const realMonthsKeys = useMemo(() => {
+    return allChronologicalMonths.filter((m) => {
+      const lower = m.toLowerCase();
+      // September 2026 is the current active month (today is Sept 9, 2026) -> ALWAYS REAL
+      if (lower.includes('setembro 2026')) return true;
+      const item = effectiveMonthsData[m];
+      if (item?.isProjected) return false;
+      // Filter out distant future projected months from the standard real list
+      if (lower.includes('2027') || lower.includes('outubro 2026') || lower.includes('novembro 2026') || lower.includes('dezembro 2026')) {
+        return false;
+      }
+      return true;
+    });
+  }, [allChronologicalMonths, effectiveMonthsData]);
+
+  // Chart-specific time range filter state (Affects ONLY the chart)
+  const [chartTimeRange, setChartTimeRange] = useState<'todos' | '3-meses' | '6-meses' | 'ano' | 'personalizado'>('todos');
+  const [chartCustomMonths, setChartCustomMonths] = useState<string[]>([]);
+  const [isChartModalOpen, setIsChartModalOpen] = useState(false);
+  const [chartCustomStart, setChartCustomStart] = useState<string>('');
+  const [chartCustomEnd, setChartCustomEnd] = useState<string>('');
+  const [includeProjectedInChart, setIncludeProjectedInChart] = useState(false);
+
+  // Determine which months to display in the chart based on chartTimeRange
+  const selectedChartMonthsKeys = useMemo(() => {
+    const baseList = includeProjectedInChart ? allChronologicalMonths : realMonthsKeys;
+    if (chartTimeRange === '3-meses') {
+      return baseList.slice(-3);
+    }
+    if (chartTimeRange === '6-meses') {
+      return baseList.slice(-6);
+    }
+    if (chartTimeRange === 'ano') {
+      return baseList.filter(m => m.includes('2026'));
+    }
+    if (chartTimeRange === 'personalizado') {
+      if (chartCustomMonths.length > 0) {
+        return allChronologicalMonths.filter(m => chartCustomMonths.includes(m));
+      }
+      if (chartCustomStart && chartCustomEnd) {
+        const startVal = getMonthSortValue(chartCustomStart);
+        const endVal = getMonthSortValue(chartCustomEnd);
+        return allChronologicalMonths.filter(m => {
+          const v = getMonthSortValue(m);
+          return v >= startVal && v <= endVal;
+        });
+      }
+    }
+    // Default: 'todos'
+    return baseList;
+  }, [chartTimeRange, realMonthsKeys, allChronologicalMonths, includeProjectedInChart, chartCustomMonths, chartCustomStart, chartCustomEnd]);
+
+  // Transform monthly data for chart with real-time transaction integration
+  const chartData = useMemo(() => {
+    return selectedChartMonthsKeys.map((m) => {
+      const item = effectiveMonthsData[m] || {
+        month: m,
+        totalMoney: 0,
+        totalIncome: 0,
+        totalExpenses: 0,
+        leftover: 0,
+      };
+
+      // Calculate real-time income & expense from recentTransactions if not yet in summary
+      let mIncome = item.totalIncome || 0;
+      let mExpenses = item.totalExpenses || 0;
+
+      if (recentTransactions && recentTransactions.length > 0) {
+        let txIncome = 0;
+        let txExpenses = 0;
+        let hasTx = false;
+        recentTransactions.forEach((tx) => {
+          const allocated = getTransactionAllocatedMonthLabel(tx);
+          if (allocated === m) {
+            hasTx = true;
+            if (tx.type === 'income') txIncome += tx.amount;
+            else if (tx.type === 'expense') txExpenses += tx.amount;
+          }
+        });
+        if (hasTx) {
+          mIncome = txIncome;
+          mExpenses = txExpenses;
+        }
+      }
+
+      const mLeftover = mIncome - mExpenses !== 0 ? (mIncome - mExpenses) : item.leftover;
+
+      return {
+        name: m.split(' ')[0], // "Maio", "Junho", "Julho", "Agosto", "Setembro"
+        fullName: m,
+        Patrimonio: item.totalMoney,
+        Renda: mIncome,
+        Gastos: mExpenses,
+        Sobra: mLeftover,
+      };
+    });
+  }, [selectedChartMonthsKeys, effectiveMonthsData, recentTransactions]);
 
   // Date parsing helper for DD/MM/YYYY or YYYY-MM-DD
   const parseDateMs = (dateStr: string): number => {
@@ -241,13 +373,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     displayLeftover = displayIncome - displayExpenses;
   } else if (timeRange === '3-meses') {
     periodLabel = 'nos 3 Mêses';
-    const monthList = realMonthsKeys.slice(-3).map(k => allMonthsData[k]);
+    const monthList = realMonthsKeys.slice(-3).map(k => effectiveMonthsData[k] || allMonthsData[k]);
     displayIncome = monthList.reduce((sum: number, m) => sum + ((m as MonthSummaryData).totalIncome || 0), 0);
     displayExpenses = monthList.reduce((sum: number, m) => sum + ((m as MonthSummaryData).totalExpenses || 0), 0);
     displayLeftover = displayIncome - displayExpenses;
   } else if (timeRange === 'ano') {
     periodLabel = 'no Ano';
-    const monthList = realMonthsKeys.map(k => allMonthsData[k]);
+    const monthList = realMonthsKeys.map(k => effectiveMonthsData[k] || allMonthsData[k]);
     displayIncome = monthList.reduce((sum: number, m) => sum + ((m as MonthSummaryData).totalIncome || 0), 0);
     displayExpenses = monthList.reduce((sum: number, m) => sum + ((m as MonthSummaryData).totalExpenses || 0), 0);
     displayLeftover = displayIncome - displayExpenses;
@@ -511,25 +643,78 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Interactive Wealth Chart (2 Cols) */}
         <div className="lg:col-span-2 glass-card rounded-3xl p-6 border border-white/90 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#11310C]/10">
-            <div>
-              <h3 className="text-lg font-extrabold text-[#11310C]">
-                Evolução do <span className="font-serif italic font-bold text-xl text-[#C4C240]">Dinheiro Total</span> e Sobras
-              </h3>
-              <p className="text-xs text-[#11310C]/60">
-                Histórico sincronizado automaticamente das planilhas mensais
-              </p>
+          <div className="flex flex-col gap-3 pb-3 border-b border-[#11310C]/10">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-lg font-extrabold text-[#11310C]">
+                  Evolução do <span className="font-serif italic font-bold text-xl text-[#C4C240]">Dinheiro Total</span> e Sobras
+                </h3>
+                <p className="text-xs text-[#11310C]/60">
+                  Histórico sincronizado automaticamente das planilhas mensais
+                </p>
+              </div>
+              <div className="flex items-center gap-3 text-xs font-bold text-[#11310C]">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#11310C]" /> Renda
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#C4C240]" /> Sobra
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#E13513]" /> Gastos
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-xs font-bold text-[#11310C]">
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-[#11310C]" /> Renda
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-[#C4C240]" /> Sobra
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-[#E13513]" /> Gastos
-              </span>
+
+            {/* Filter of Months that affects ONLY the chart */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <div className="inline-flex items-center gap-1 p-1 bg-[#11310C]/5 rounded-2xl border border-[#11310C]/10 max-w-full flex-wrap sm:flex-nowrap">
+                  {[
+                    { id: 'todos', label: 'Todos os Meses' },
+                    { id: '3-meses', label: 'Últimos 3 Mêses' },
+                    { id: '6-meses', label: 'Últimos 6 Mêses' },
+                    { id: 'ano', label: 'Ano 2026' },
+                  ].map((chip) => (
+                    <button
+                      key={chip.id}
+                      onClick={() => setChartTimeRange(chip.id as any)}
+                      className={`px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                        chartTimeRange === chip.id
+                          ? 'bg-[#11310C] text-[#FAFBF6] shadow-xs'
+                          : 'text-[#11310C]/80 hover:text-[#11310C]'
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+
+                  {/* Calendar / Custom Selection Button */}
+                  <button
+                    onClick={() => setIsChartModalOpen(true)}
+                    title="Personalizar Meses do Gráfico"
+                    className={`px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                      chartTimeRange === 'personalizado'
+                        ? 'bg-[#11310C] text-[#C4C240] shadow-xs'
+                        : 'text-[#11310C]/70 hover:text-[#11310C] hover:bg-white/50'
+                    }`}
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-[#11310C]" />
+                    <span className="hidden sm:inline">
+                      {chartTimeRange === 'personalizado' ? 'Personalizado' : ''}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Status pill showing which months are actively rendered on the chart */}
+              <div className="text-[11px] font-semibold text-[#11310C]/60 flex items-center gap-1.5">
+                <span>No gráfico:</span>
+                <span className="font-extrabold text-[#11310C] bg-white/80 px-2 py-0.5 rounded-lg border border-[#11310C]/10 shadow-xs">
+                  {selectedChartMonthsKeys.length} {selectedChartMonthsKeys.length === 1 ? 'mês' : 'meses'}
+                  {selectedChartMonthsKeys.length > 0 && ` (${selectedChartMonthsKeys[0].split(' ')[0]} - ${selectedChartMonthsKeys[selectedChartMonthsKeys.length - 1].split(' ')[0]})`}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -852,6 +1037,152 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               >
                 <Check className="w-4 h-4" />
                 Aplicar Filtro
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chart Custom Months Selection Modal (Affects ONLY the chart) */}
+      {isChartModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#11310C]/40 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-[#FAFBF6] border border-[#11310C]/20 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-[#11310C]/10 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-[#11310C]/5 text-[#11310C]">
+                  <Calendar className="w-5 h-5 text-[#11310C]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-[#11310C]">Meses do Gráfico</h3>
+                  <p className="text-[11px] text-[#11310C]/60">Filtro exclusivo para a evolução visual do gráfico</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsChartModalOpen(false)}
+                className="p-1 rounded-xl hover:bg-[#11310C]/5 text-[#11310C]/70 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick interval selectors */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-[#11310C]/80">A partir de:</label>
+                <select
+                  value={chartCustomStart || allChronologicalMonths[0] || ''}
+                  onChange={(e) => setChartCustomStart(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-[#11310C]/15 rounded-xl text-xs font-bold text-[#11310C] focus:outline-none focus:border-[#C4C240]"
+                >
+                  {allChronologicalMonths.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-[#11310C]/80">Até o mês:</label>
+                <select
+                  value={chartCustomEnd || allChronologicalMonths[allChronologicalMonths.length - 1] || ''}
+                  onChange={(e) => setChartCustomEnd(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-[#11310C]/15 rounded-xl text-xs font-bold text-[#11310C] focus:outline-none focus:border-[#C4C240]"
+                >
+                  {allChronologicalMonths.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Individual month selection toggles */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-[#11310C]/80">
+                <span>Ou selecione meses específicos:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChartCustomMonths([...allChronologicalMonths]);
+                  }}
+                  className="text-[11px] text-[#11310C] underline font-bold cursor-pointer hover:text-[#C4C240]"
+                >
+                  Marcar todos
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-1">
+                {allChronologicalMonths.map((m) => {
+                  const isChecked = chartCustomMonths.length > 0
+                    ? chartCustomMonths.includes(m)
+                    : selectedChartMonthsKeys.includes(m);
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => {
+                        let updated: string[];
+                        if (chartCustomMonths.length === 0) {
+                          const base = [...selectedChartMonthsKeys];
+                          if (base.includes(m)) {
+                            updated = base.filter((x) => x !== m);
+                          } else {
+                            updated = [...base, m];
+                          }
+                        } else if (chartCustomMonths.includes(m)) {
+                          updated = chartCustomMonths.filter((x) => x !== m);
+                        } else {
+                          updated = [...chartCustomMonths, m];
+                        }
+                        updated.sort((a, b) => getMonthSortValue(a) - getMonthSortValue(b));
+                        setChartCustomMonths(updated);
+                        setChartCustomStart('');
+                        setChartCustomEnd('');
+                      }}
+                      className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all text-left flex items-center justify-between cursor-pointer ${
+                        isChecked
+                          ? 'bg-[#11310C] text-[#FAFBF6] border-[#11310C]'
+                          : 'bg-white/80 text-[#11310C]/70 border-[#11310C]/15 hover:border-[#11310C]/40'
+                      }`}
+                    >
+                      <span className="truncate">{m.split(' ')[0]}</span>
+                      {isChecked && <Check className="w-3.5 h-3.5 text-[#C4C240] shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Toggle to include future projected months */}
+            <div className="pt-2 border-t border-[#11310C]/10 flex items-center justify-between">
+              <label className="text-xs font-semibold text-[#11310C]/80 cursor-pointer flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={includeProjectedInChart}
+                  onChange={(e) => setIncludeProjectedInChart(e.target.checked)}
+                  className="rounded text-[#11310C] focus:ring-[#C4C240]"
+                />
+                Incluir projeções futuras (+8 meses)
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#11310C]/10">
+              <button
+                onClick={() => setIsChartModalOpen(false)}
+                className="px-4 py-2 text-xs font-bold text-[#11310C]/70 hover:text-[#11310C] cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  setChartTimeRange('personalizado');
+                  setIsChartModalOpen(false);
+                }}
+                className="px-5 py-2.5 bg-[#11310C] text-[#C4C240] rounded-xl text-xs font-extrabold shadow-md hover:bg-[#11310C]/90 transition-all cursor-pointer flex items-center gap-2"
+              >
+                <Check className="w-4 h-4" />
+                Aplicar ao Gráfico
               </button>
             </div>
           </div>

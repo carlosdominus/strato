@@ -18,6 +18,7 @@ export const INITIAL_MONTHS = [
   'Junho 2026',
   'Julho 2026',
   'Agosto 2026',
+  'Setembro 2026',
 ];
 
 export const INITIAL_BANK_ACCOUNTS: BankAccount[] = [
@@ -95,6 +96,17 @@ export const MONTHLY_HISTORICAL_DATA: Record<string, MonthSummaryData> = {
     totalDebts: 0,
     activeSubscriptionsCount: 4,
     monthlyGrowthPercent: 4.66,
+  },
+  'Setembro 2026': {
+    month: 'Setembro 2026',
+    totalMoney: 63850.00,
+    totalIncome: 0,
+    totalExpenses: 0,
+    leftover: 0,
+    totalInvestments: 0,
+    totalDebts: 0,
+    activeSubscriptionsCount: 4,
+    monthlyGrowthPercent: 1.67,
   },
 };
 

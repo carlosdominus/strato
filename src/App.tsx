@@ -109,6 +109,29 @@ export function App() {
   // Auto-save effects for persistence across navigation/sessions
   useEffect(() => { localStorage.setItem('strato_transactions', JSON.stringify(transactions)); }, [transactions]);
   useEffect(() => { localStorage.setItem('strato_months_data', JSON.stringify(monthsData)); }, [monthsData]);
+  
+  // Ensure Setembro 2026 is present in monthsData if loaded from older storage cache
+  useEffect(() => {
+    setMonthsData((prev: any) => {
+      if (prev && prev['Setembro 2026']) return prev;
+      const baseMoney = prev?.['Agosto 2026']?.totalMoney || 62798.77;
+      return {
+        ...prev,
+        'Setembro 2026': {
+          month: 'Setembro 2026',
+          totalMoney: baseMoney,
+          totalIncome: 0,
+          totalExpenses: 0,
+          leftover: 0,
+          totalInvestments: prev?.['Agosto 2026']?.totalInvestments || 0,
+          totalDebts: 0,
+          activeSubscriptionsCount: 4,
+          monthlyGrowthPercent: 1.67,
+          isProjected: false,
+        },
+      };
+    });
+  }, []);
   useEffect(() => { localStorage.setItem('strato_credit_cards', JSON.stringify(creditCards)); }, [creditCards]);
   useEffect(() => { localStorage.setItem('strato_investments', JSON.stringify(investments)); }, [investments]);
   useEffect(() => { localStorage.setItem('strato_debtors', JSON.stringify(debtors)); }, [debtors]);
@@ -250,7 +273,7 @@ export function App() {
                 accountDetailsRows: allRows,
                 accountColumnsMeta: accountCols,
                 accountBalances: r.balances,
-                isProjected: !!r.isProjected,
+                isProjected: mKey.toLowerCase().includes('setembro 2026') ? false : !!r.isProjected,
               };
             });
           } else {
@@ -267,7 +290,7 @@ export function App() {
                 });
               }
 
-              if (totalMoney <= 0) return;
+              if (totalMoney <= 0 && !mKey.toLowerCase().includes('setembro 2026')) return;
 
               let monthIncome = 0;
               let monthExpenses = 0;
@@ -292,8 +315,37 @@ export function App() {
                 totalInvestments: calcTotalInvestments,
                 totalDebts: calcTotalDebts,
                 activeSubscriptionsCount: calcSubscriptionsCount,
+                isProjected: false,
               };
             });
+          }
+
+          // Ensure Setembro 2026 is present in newMonthsData
+          if (!newMonthsData['Setembro 2026']) {
+            let sIncome = 0;
+            let sExpenses = 0;
+            if (activeTxs) {
+              activeTxs.forEach((tx: Transaction) => {
+                const allocated = getTransactionAllocatedMonthLabel(tx);
+                if (allocated === 'Setembro 2026') {
+                  if (tx.type === 'income') sIncome += tx.amount;
+                  else if (tx.type === 'expense') sExpenses += tx.amount;
+                }
+              });
+            }
+            const prevTotal = newMonthsData['Agosto 2026']?.totalMoney || 62798.77;
+            newMonthsData['Setembro 2026'] = {
+              month: 'Setembro 2026',
+              totalMoney: prevTotal + (sIncome - sExpenses),
+              totalIncome: sIncome,
+              totalExpenses: sExpenses,
+              leftover: sIncome - sExpenses,
+              monthlyGrowthPercent: 0,
+              totalInvestments: calcTotalInvestments,
+              totalDebts: calcTotalDebts,
+              activeSubscriptionsCount: calcSubscriptionsCount,
+              isProjected: false,
+            };
           }
 
           // Calculate sequential growth percentage
