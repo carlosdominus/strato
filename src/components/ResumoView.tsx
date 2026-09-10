@@ -43,13 +43,13 @@ const CustomBarTooltip = ({ active, payload, label, liveInvestmentsTotal = 0, in
     const baseTotal = Number(data.baseTotalMoney ?? currentBarVal);
     const withAportesTotal = Number(data.withAportesTotalMoney ?? currentBarVal);
 
-    const isProjected = data.isProjected;
-    const monthName = (data.month || label || '').toUpperCase();
+    const isProjected = !!data.isProjected;
+    const monthName = (data.month || String(label || '').split(' ')[0] || '').toUpperCase();
     
-    // Extract year from monthKey or calculate based on projected status (e.g., 2027 for projected January)
-    const monthKeyStr = String(data.monthKey || '');
-    const parts = monthKeyStr.split(' ');
-    const yearStr = parts.length > 1 ? parts[1] : (isProjected && monthName.includes('JAN') ? '2027' : '2026');
+    // Extract year reliably from data.year or data.monthKey or label
+    const monthKeyStr = String(data.monthKey || label || '');
+    const parts = monthKeyStr.trim().split(/\s+/);
+    const yearStr = data.year || (parts.length > 1 ? parts[1] : (isProjected ? '2027' : '2026'));
     
     // Total Consolidado = Dinheiro Total do Mês (contas/previsão CDI) + Soma dos Investimentos de hoje
     const totalConsolidadoBase = baseTotal + liveInvestmentsTotal;
@@ -146,7 +146,11 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
     ? currentMonthData.accountDetailsRows
     : Object.keys(allMonthsData).map((mKey) => {
         const item = allMonthsData[mKey];
-        const isProj = mKey.toLowerCase().includes('setembro') || mKey.toLowerCase().includes('outubro') || mKey.toLowerCase().includes('novembro') || mKey.toLowerCase().includes('dezembro') || mKey.includes('2027');
+        const lower = mKey.toLowerCase();
+        // A month is only projected if explicitly set to true or if it's an unrecorded future month beyond September 2026
+        const isProj = typeof item.isProjected === 'boolean'
+          ? item.isProjected
+          : (lower.includes('outubro 2026') || lower.includes('novembro 2026') || lower.includes('dezembro 2026') || lower.includes('2027'));
         return {
           date: '01/01/2026',
           monthLabel: mKey,
@@ -312,35 +316,56 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
   const effectiveTableRows = includeAportes ? withAportesTableRows : tableRows;
 
   // Monthly total money chart data synced with effectiveTableRows & withAportesTableRows
-  const monthlyTotalsChart = Object.keys(allMonthsData).map((mKey) => {
-    const item = allMonthsData[mKey];
-    const isProj = mKey.toLowerCase().includes('setembro') || mKey.toLowerCase().includes('outubro') || mKey.toLowerCase().includes('novembro') || mKey.toLowerCase().includes('dezembro') || mKey.includes('2027');
+  const monthlyTotalsChart = useMemo(() => {
+    return tableRows.map((baseRow, idx) => {
+      const mLabel = baseRow.monthLabel || '';
+      const matchingWithAportesRow = withAportesTableRows[idx] || withAportesTableRows.find(
+        (tr) => tr.monthLabel.toLowerCase() === mLabel.toLowerCase()
+      );
 
-    const matchingBaseRow = tableRows.find(
-      (tr) => tr.monthLabel.toLowerCase() === mKey.toLowerCase()
-    );
-    const matchingWithAportesRow = withAportesTableRows.find(
-      (tr) => tr.monthLabel.toLowerCase() === mKey.toLowerCase()
-    );
+      const baseTotal = baseRow.total;
+      const withAportesTotal = matchingWithAportesRow ? matchingWithAportesRow.total : baseTotal;
+      const displayTotal = includeAportes ? withAportesTotal : baseTotal;
 
-    const baseTotal = matchingBaseRow ? matchingBaseRow.total : item.totalMoney;
-    const withAportesTotal = matchingWithAportesRow ? matchingWithAportesRow.total : item.totalMoney;
-    const displayTotal = includeAportes ? withAportesTotal : baseTotal;
+      const isProj = !!baseRow.isProjected;
 
-    return {
-      monthKey: mKey,
-      month: mKey.split(' ')[0],
-      totalMoney: displayTotal,
-      baseTotalMoney: baseTotal,
-      withAportesTotalMoney: withAportesTotal,
-      growth: item.monthlyGrowthPercent,
-      isPositive: item.monthlyGrowthPercent >= 0,
-      isProjected: isProj,
-      income: item.totalIncome,
-      expenses: item.totalExpenses,
-      leftover: item.leftover,
-    };
-  });
+      // Extract month name and year accurately
+      const parts = mLabel.trim().split(/\s+/);
+      const monthOnly = parts[0] || mLabel;
+      const yearOnly = parts.length > 1 ? parts[1] : (idx >= 8 ? '2027' : '2026');
+
+      // Unique chart key for Recharts so XAxis never collides identical month names from different years (e.g. "Maio 2026" vs "Maio 2027")
+      const uniqueKey = `${monthOnly} ${yearOnly}`;
+
+      // Calculate sequential growth based on the actual base totals
+      let computedGrowth = 0;
+      if (idx > 0) {
+        const prevRow = tableRows[idx - 1];
+        const prevTotal = prevRow ? prevRow.total : 0;
+        if (prevTotal > 0 && baseTotal > 0) {
+          computedGrowth = parseFloat((((baseTotal - prevTotal) / prevTotal) * 100).toFixed(2));
+        }
+      }
+
+      const isPositive = computedGrowth >= 0;
+      const extraItem = allMonthsData[mLabel] || allMonthsData[uniqueKey] || allMonthsData[monthOnly];
+
+      return {
+        monthKey: uniqueKey,
+        month: monthOnly,
+        year: yearOnly,
+        totalMoney: displayTotal,
+        baseTotalMoney: baseTotal,
+        withAportesTotalMoney: withAportesTotal,
+        growth: computedGrowth,
+        isPositive,
+        isProjected: isProj,
+        income: extraItem?.totalIncome || 0,
+        expenses: extraItem?.totalExpenses || 0,
+        leftover: extraItem?.leftover || 0,
+      };
+    });
+  }, [tableRows, withAportesTableRows, includeAportes, allMonthsData]);
 
   const finalProjectedTotal = effectiveTableRows[effectiveTableRows.length - 1]?.total || consolidatedTotalMoney;
 
@@ -533,7 +558,13 @@ export const ResumoView: React.FC<ResumoViewProps> = ({
           <ResponsiveContainer width="100%" height="100%" debounce={100}>
             <BarChart data={monthlyTotalsChart} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#11310C" strokeOpacity={0.08} />
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#11310C', fontWeight: 600 }} />
+              <XAxis
+                dataKey="monthKey"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: '#11310C', fontWeight: 600 }}
+                tickFormatter={(v: string) => String(v).split(' ')[0]}
+              />
               <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#11310C' }} tickFormatter={(v) => `R$${v/1000}k`} />
               <Tooltip content={<CustomBarTooltip liveInvestmentsTotal={liveInvestmentsTotal} includeAportes={includeAportes} />} />
               <Bar

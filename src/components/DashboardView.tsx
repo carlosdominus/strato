@@ -195,11 +195,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const realMonthsKeys = useMemo(() => {
     return allChronologicalMonths.filter((m) => {
       const lower = m.toLowerCase();
-      // September 2026 is the current active month (today is Sept 9, 2026) -> ALWAYS REAL
+      // September 2026 is the current active month -> ALWAYS REAL
       if (lower.includes('setembro 2026')) return true;
       const item = effectiveMonthsData[m];
-      if (item?.isProjected) return false;
-      // Filter out distant future projected months from the standard real list
+      if (typeof item?.isProjected === 'boolean') {
+        return !item.isProjected;
+      }
+      // Filter out distant future projected months from the standard real list if unspecified
       if (lower.includes('2027') || lower.includes('outubro 2026') || lower.includes('novembro 2026') || lower.includes('dezembro 2026')) {
         return false;
       }
@@ -736,7 +738,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#11310C" strokeOpacity={0.08} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#11310C', fontWeight: 600 }} />
+                <XAxis
+                  dataKey="fullName"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fill: '#11310C', fontWeight: 600 }}
+                  tickFormatter={(v) => String(v).split(' ')[0]}
+                />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#11310C' }} tickFormatter={(v) => `R$${v/1000}k`} />
                 <Tooltip content={<CustomAreaTooltip />} />
                 <Area
