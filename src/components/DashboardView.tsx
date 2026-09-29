@@ -47,12 +47,28 @@ const MONTH_ORDER: Record<string, number> = {
   dezembro: 12, dez: 12,
 };
 
+const MONTH_NAMES_FULL = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+
 const getMonthSortValue = (monthStr: string): number => {
   const parts = (monthStr || '').toLowerCase().trim().split(' ');
   const name = parts[0] || '';
   const year = parts[1] ? parseInt(parts[1], 10) : 2026;
   const monthNum = MONTH_ORDER[name] || 1;
   return year * 100 + monthNum;
+};
+
+const getNextMonthLabel = (monthStr: string): string => {
+  const parts = (monthStr || '').trim().split(' ');
+  const name = (parts[0] || '').toLowerCase();
+  const year = parts[1] ? parseInt(parts[1], 10) : 2026;
+  const monthNum = MONTH_ORDER[name] || 9; // 1..12
+  if (monthNum >= 12) {
+    return `Janeiro ${year + 1}`;
+  }
+  return `${MONTH_NAMES_FULL[monthNum]} ${year}`;
 };
 
 const CustomAreaTooltip = ({ active, payload, label }: any) => {
@@ -211,40 +227,49 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Chart-specific time range filter state (Affects ONLY the chart)
   const [chartTimeRange, setChartTimeRange] = useState<'todos' | '3-meses' | '6-meses' | 'ano' | 'personalizado'>('todos');
+  const [includeNextMonth, setIncludeNextMonth] = useState(false);
   const [chartCustomMonths, setChartCustomMonths] = useState<string[]>([]);
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [chartCustomStart, setChartCustomStart] = useState<string>('');
   const [chartCustomEnd, setChartCustomEnd] = useState<string>('');
   const [includeProjectedInChart, setIncludeProjectedInChart] = useState(false);
 
-  // Determine which months to display in the chart based on chartTimeRange
+  // Next month label right after the last real recorded month (e.g. Setembro 2026 -> Outubro 2026)
+  const nextMonthKey = useMemo(() => {
+    const lastReal = realMonthsKeys[realMonthsKeys.length - 1] || 'Setembro 2026';
+    return getNextMonthLabel(lastReal);
+  }, [realMonthsKeys]);
+
+  // Determine which months to display in the chart based on chartTimeRange and includeNextMonth
   const selectedChartMonthsKeys = useMemo(() => {
     const baseList = includeProjectedInChart ? allChronologicalMonths : realMonthsKeys;
+    let result: string[] = baseList;
+
     if (chartTimeRange === '3-meses') {
-      return baseList.slice(-3);
-    }
-    if (chartTimeRange === '6-meses') {
-      return baseList.slice(-6);
-    }
-    if (chartTimeRange === 'ano') {
-      return baseList.filter(m => m.includes('2026'));
-    }
-    if (chartTimeRange === 'personalizado') {
+      result = baseList.slice(-3);
+    } else if (chartTimeRange === '6-meses') {
+      result = baseList.slice(-6);
+    } else if (chartTimeRange === 'ano') {
+      result = baseList.filter(m => m.includes('2026'));
+    } else if (chartTimeRange === 'personalizado') {
       if (chartCustomMonths.length > 0) {
-        return allChronologicalMonths.filter(m => chartCustomMonths.includes(m));
-      }
-      if (chartCustomStart && chartCustomEnd) {
+        result = allChronologicalMonths.filter(m => chartCustomMonths.includes(m));
+      } else if (chartCustomStart && chartCustomEnd) {
         const startVal = getMonthSortValue(chartCustomStart);
         const endVal = getMonthSortValue(chartCustomEnd);
-        return allChronologicalMonths.filter(m => {
+        result = allChronologicalMonths.filter(m => {
           const v = getMonthSortValue(m);
           return v >= startVal && v <= endVal;
         });
       }
     }
-    // Default: 'todos'
-    return baseList;
-  }, [chartTimeRange, realMonthsKeys, allChronologicalMonths, includeProjectedInChart, chartCustomMonths, chartCustomStart, chartCustomEnd]);
+
+    if (includeNextMonth && nextMonthKey && !result.includes(nextMonthKey)) {
+      return [...result, nextMonthKey];
+    }
+
+    return result;
+  }, [chartTimeRange, includeNextMonth, nextMonthKey, realMonthsKeys, allChronologicalMonths, includeProjectedInChart, chartCustomMonths, chartCustomStart, chartCustomEnd]);
 
   // Transform monthly data for chart with real-time transaction integration
   const chartData = useMemo(() => {
@@ -279,10 +304,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         }
       }
 
-      const mLeftover = mIncome - mExpenses !== 0 ? (mIncome - mExpenses) : item.leftover;
+      // If the month has no income registered yet (e.g. next month showing credit card expenses), keep leftover at 0
+      const mLeftover =
+        mIncome > 0
+          ? mIncome - mExpenses
+          : item.leftover && item.leftover > 0
+          ? item.leftover
+          : 0;
 
       return {
-        name: m.split(' ')[0], // "Maio", "Junho", "Julho", "Agosto", "Setembro"
+        name: m.split(' ')[0], // "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro"
         fullName: m,
         Patrimonio: item.totalMoney,
         Renda: mIncome,
@@ -645,16 +676,72 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Interactive Wealth Chart (2 Cols) */}
         <div className="lg:col-span-2 glass-card rounded-3xl p-6 border border-white/90 space-y-4">
-          <div className="flex flex-col gap-3 pb-3 border-b border-[#11310C]/10">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h3 className="text-lg font-extrabold text-[#11310C]">
-                  Evolução do <span className="font-serif italic font-bold text-xl text-[#C4C240]">Dinheiro Total</span> e Sobras
-                </h3>
-                <p className="text-xs text-[#11310C]/60">
-                  Histórico sincronizado automaticamente das planilhas mensais
-                </p>
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pb-3 border-b border-[#11310C]/10">
+            <div>
+              <h3 className="text-lg font-extrabold text-[#11310C]">
+                Evolução do <span className="font-serif italic font-bold text-xl text-[#C4C240]">Dinheiro Total</span> e Sobras
+              </h3>
+              <p className="text-xs text-[#11310C]/60">
+                Histórico sincronizado das planilhas mensais
+              </p>
+            </div>
+
+            {/* Filter of Months + Legend in header */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="inline-flex items-center gap-1 p-1 bg-[#11310C]/5 rounded-2xl border border-[#11310C]/10 max-w-full flex-wrap sm:flex-nowrap">
+                {/* Toggle Next Month (Add Próx. Mês) */}
+                <button
+                  type="button"
+                  onClick={() => setIncludeNextMonth((prev) => !prev)}
+                  title={`Incluir ${nextMonthKey} (gastos de cartão já lançados)`}
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    includeNextMonth
+                      ? 'bg-[#11310C] text-[#C4C240] shadow-xs'
+                      : 'text-[#11310C]/80 hover:text-[#11310C]'
+                  }`}
+                >
+                  Add Próx. Mês
+                </button>
+
+                {[
+                  { id: '3-meses', label: 'Últ. 3 Meses' },
+                  { id: '6-meses', label: 'Últ. 6 Meses' },
+                  { id: 'todos', label: 'Todos' },
+                ].map((chip) => (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    onClick={() => setChartTimeRange(chip.id as any)}
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer ${
+                      chartTimeRange === chip.id
+                        ? 'bg-[#11310C] text-[#FAFBF6] shadow-xs'
+                        : 'text-[#11310C]/80 hover:text-[#11310C]'
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+
+                {/* Calendar / Custom Selection Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsChartModalOpen(true)}
+                  title="Personalizar Meses do Gráfico"
+                  className={`px-2 py-1 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                    chartTimeRange === 'personalizado'
+                      ? 'bg-[#11310C] text-[#C4C240] shadow-xs'
+                      : 'text-[#11310C]/70 hover:text-[#11310C] hover:bg-white/50'
+                  }`}
+                >
+                  <Calendar className="w-3.5 h-3.5 text-[#11310C]" />
+                  {chartTimeRange === 'personalizado' && (
+                    <span className="hidden sm:inline">Personalizado</span>
+                  )}
+                </button>
               </div>
+
+              <div className="h-4 w-px bg-[#11310C]/15 hidden sm:block" />
+
               <div className="flex items-center gap-3 text-xs font-bold text-[#11310C]">
                 <span className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#11310C]" /> Renda
@@ -664,57 +751,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#E13513]" /> Gastos
-                </span>
-              </div>
-            </div>
-
-            {/* Filter of Months that affects ONLY the chart */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <div className="inline-flex items-center gap-1 p-1 bg-[#11310C]/5 rounded-2xl border border-[#11310C]/10 max-w-full flex-wrap sm:flex-nowrap">
-                  {[
-                    { id: 'todos', label: 'Todos os Meses' },
-                    { id: '3-meses', label: 'Últimos 3 Mêses' },
-                    { id: '6-meses', label: 'Últimos 6 Mêses' },
-                    { id: 'ano', label: 'Ano 2026' },
-                  ].map((chip) => (
-                    <button
-                      key={chip.id}
-                      onClick={() => setChartTimeRange(chip.id as any)}
-                      className={`px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                        chartTimeRange === chip.id
-                          ? 'bg-[#11310C] text-[#FAFBF6] shadow-xs'
-                          : 'text-[#11310C]/80 hover:text-[#11310C]'
-                      }`}
-                    >
-                      {chip.label}
-                    </button>
-                  ))}
-
-                  {/* Calendar / Custom Selection Button */}
-                  <button
-                    onClick={() => setIsChartModalOpen(true)}
-                    title="Personalizar Meses do Gráfico"
-                    className={`px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap ${
-                      chartTimeRange === 'personalizado'
-                        ? 'bg-[#11310C] text-[#C4C240] shadow-xs'
-                        : 'text-[#11310C]/70 hover:text-[#11310C] hover:bg-white/50'
-                    }`}
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-[#11310C]" />
-                    <span className="hidden sm:inline">
-                      {chartTimeRange === 'personalizado' ? 'Personalizado' : ''}
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Status pill showing which months are actively rendered on the chart */}
-              <div className="text-[11px] font-semibold text-[#11310C]/60 flex items-center gap-1.5">
-                <span>No gráfico:</span>
-                <span className="font-extrabold text-[#11310C] bg-white/80 px-2 py-0.5 rounded-lg border border-[#11310C]/10 shadow-xs">
-                  {selectedChartMonthsKeys.length} {selectedChartMonthsKeys.length === 1 ? 'mês' : 'meses'}
-                  {selectedChartMonthsKeys.length > 0 && ` (${selectedChartMonthsKeys[0].split(' ')[0]} - ${selectedChartMonthsKeys[selectedChartMonthsKeys.length - 1].split(' ')[0]})`}
                 </span>
               </div>
             </div>
