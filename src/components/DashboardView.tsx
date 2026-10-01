@@ -27,7 +27,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts';
-import { MonthSummaryData, Transaction, CreditCardSheet, AIRecommendation, TaxSettings } from '../types';
+import { MonthSummaryData, Transaction, CreditCardSheet, Subscription, AIRecommendation, TaxSettings } from '../types';
 import { formatCurrency, formatPercent, formatDateBR } from '../utils/formatters';
 import { getTransactionAllocatedMonthLabel, calculateEffectiveInvoiceDate } from '../utils/sheetParser';
 import { Receipt } from 'lucide-react';
@@ -77,9 +77,11 @@ const CustomAreaTooltip = ({ active, payload, label }: any) => {
     const fullName = dataPoint?.fullName || label;
     const isCardCycleMonth = dataPoint?.isCardCycleMonth;
     const activeCardsInCycle: string[] = dataPoint?.activeCardsInCycle || [];
+    const subscriptionsTotal: number = dataPoint?.subscriptionsTotal || 0;
+    const subscriptionNames: string[] = dataPoint?.subscriptionNames || [];
 
     return (
-      <div className="bg-[#11310C] border border-[#C4C240] p-3.5 rounded-2xl shadow-xl text-[#FAFBF6] space-y-1.5 z-50 min-w-[220px]">
+      <div className="bg-[#11310C] border border-[#C4C240] p-3.5 rounded-2xl shadow-xl text-[#FAFBF6] space-y-1.5 z-50 min-w-[230px]">
         <div className="flex items-center justify-between gap-2 border-b border-white/15 pb-1.5">
           <p className="text-xs font-black text-[#C4C240] uppercase tracking-wider">{fullName}</p>
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#C4C240]/20 text-[#C4C240]">
@@ -99,6 +101,12 @@ const CustomAreaTooltip = ({ active, payload, label }: any) => {
             </p>
           ))}
         </div>
+        {isCardCycleMonth && subscriptionsTotal > 0 && (
+          <div className="pt-1.5 mt-1 border-t border-white/10 text-[10px] text-white/75 flex items-center justify-between gap-2">
+            <span>Assinaturas ({subscriptionNames.join(', ')}):</span>
+            <span className="font-bold text-[#C4C240]">+{formatCurrency(subscriptionsTotal)}</span>
+          </div>
+        )}
       </div>
     );
   }
@@ -110,6 +118,7 @@ interface DashboardViewProps {
   allMonthsData: Record<string, MonthSummaryData>;
   recentTransactions: Transaction[];
   creditCards: CreditCardSheet[];
+  subscriptions?: Subscription[];
   selectedMonth: string;
   onNavigateToTab: (tabId: string) => void;
   onOpenManualModal: () => void;
@@ -122,6 +131,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   allMonthsData,
   recentTransactions,
   creditCards,
+  subscriptions = [],
   selectedMonth,
   onNavigateToTab,
   onOpenManualModal,
@@ -340,8 +350,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return result;
   }, [chartTimeRange, includeNextMonth, cardCycleInfo, realMonthsKeys, allChronologicalMonths, includeProjectedInChart, chartCustomMonths, chartCustomStart, chartCustomEnd]);
 
-  // Transform monthly data for chart with real-time transaction integration
+  // Transform monthly data for chart with real-time transaction & active subscription integration
   const chartData = useMemo(() => {
+    const activeSubs = (subscriptions || []).filter((s) => s.status === 'ativa' || s.active);
+
     return selectedChartMonthsKeys.map((m) => {
       const item = effectiveMonthsData[m] || {
         month: m,
@@ -351,9 +363,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         leftover: 0,
       };
 
+      const isCardCycleMonth = cardCycleInfo.monthsToAdd.includes(m);
+
       // Calculate real-time income & expense from recentTransactions if not yet in summary
       let mIncome = item.totalIncome || 0;
       let mExpenses = item.totalExpenses || 0;
+      const monthTxDescriptions: string[] = [];
 
       if (recentTransactions && recentTransactions.length > 0) {
         let txIncome = 0;
@@ -363,6 +378,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           const allocated = getTransactionAllocatedMonthLabel(tx);
           if (allocated === m) {
             hasTx = true;
+            if (tx.description) {
+              monthTxDescriptions.push(tx.description.toLowerCase());
+            }
             if (tx.type === 'income') txIncome += tx.amount;
             else if (tx.type === 'expense') txExpenses += tx.amount;
           }
@@ -371,6 +389,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           mIncome = txIncome;
           mExpenses = txExpenses;
         }
+      }
+
+      // Sum active recurring subscriptions into the credit card cycle months (avoiding duplicates if already in extrato)
+      let subscriptionsTotal = 0;
+      const subscriptionNames: string[] = [];
+      if (isCardCycleMonth && activeSubs.length > 0) {
+        activeSubs.forEach((sub) => {
+          const subNameLower = (sub.serviceName || '').toLowerCase().trim();
+          const alreadyInExtrato =
+            subNameLower &&
+            monthTxDescriptions.some((desc) => desc.includes(subNameLower));
+          if (!alreadyInExtrato && sub.monthlyPrice > 0) {
+            subscriptionsTotal += sub.monthlyPrice;
+            subscriptionNames.push(sub.serviceName);
+          }
+        });
+        mExpenses += subscriptionsTotal;
       }
 
       // If the month has no income registered yet (e.g. next month showing credit card expenses), keep leftover at 0
@@ -388,11 +423,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         Renda: mIncome,
         Gastos: mExpenses,
         Sobra: mLeftover,
-        isCardCycleMonth: cardCycleInfo.monthsToAdd.includes(m),
+        isCardCycleMonth,
         activeCardsInCycle: cardCycleInfo.byMonth[m] || [],
+        subscriptionsTotal,
+        subscriptionNames,
       };
     });
-  }, [selectedChartMonthsKeys, effectiveMonthsData, recentTransactions, cardCycleInfo]);
+  }, [selectedChartMonthsKeys, effectiveMonthsData, recentTransactions, cardCycleInfo, subscriptions]);
 
   // Date parsing helper for DD/MM/YYYY or YYYY-MM-DD
   const parseDateMs = (dateStr: string): number => {

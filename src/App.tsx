@@ -643,6 +643,7 @@ export function App() {
                 allMonthsData={monthsData}
                 recentTransactions={transactions}
                 creditCards={creditCards}
+                subscriptions={subscriptions}
                 selectedMonth={selectedMonth}
                 onNavigateToTab={handleSelectTab}
                 onOpenManualModal={() => setIsManualModalOpen(true)}
