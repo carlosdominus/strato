@@ -29,7 +29,7 @@ import {
 } from 'recharts';
 import { MonthSummaryData, Transaction, CreditCardSheet, AIRecommendation, TaxSettings } from '../types';
 import { formatCurrency, formatPercent, formatDateBR } from '../utils/formatters';
-import { getTransactionAllocatedMonthLabel } from '../utils/sheetParser';
+import { getTransactionAllocatedMonthLabel, calculateEffectiveInvoiceDate } from '../utils/sheetParser';
 import { Receipt } from 'lucide-react';
 
 const MONTH_ORDER: Record<string, number> = {
@@ -73,15 +73,24 @@ const getNextMonthLabel = (monthStr: string): string => {
 
 const CustomAreaTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
-    const fullName = payload[0]?.payload?.fullName || label;
+    const dataPoint = payload[0]?.payload;
+    const fullName = dataPoint?.fullName || label;
+    const isCardCycleMonth = dataPoint?.isCardCycleMonth;
+    const activeCardsInCycle: string[] = dataPoint?.activeCardsInCycle || [];
+
     return (
-      <div className="bg-[#11310C] border border-[#C4C240] p-3.5 rounded-2xl shadow-xl text-[#FAFBF6] space-y-1.5 z-50 min-w-[210px]">
+      <div className="bg-[#11310C] border border-[#C4C240] p-3.5 rounded-2xl shadow-xl text-[#FAFBF6] space-y-1.5 z-50 min-w-[220px]">
         <div className="flex items-center justify-between gap-2 border-b border-white/15 pb-1.5">
           <p className="text-xs font-black text-[#C4C240] uppercase tracking-wider">{fullName}</p>
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#C4C240]/20 text-[#C4C240]">
-            Visão Consolidada
+            {isCardCycleMonth ? 'Ciclo do Cartão' : 'Visão Consolidada'}
           </span>
         </div>
+        {isCardCycleMonth && activeCardsInCycle.length > 0 && (
+          <p className="text-[10px] text-[#C4C240]/90 font-semibold leading-tight pb-1 border-b border-white/10">
+            Compra 1x hoje cai aqui: {activeCardsInCycle.join(', ')}
+          </p>
+        )}
         <div className="space-y-1 pt-1">
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-xs font-semibold text-white flex items-center justify-between gap-3">
@@ -234,11 +243,65 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [chartCustomEnd, setChartCustomEnd] = useState<string>('');
   const [includeProjectedInChart, setIncludeProjectedInChart] = useState(false);
 
-  // Next month label right after the last real recorded month (e.g. Setembro 2026 -> Outubro 2026)
-  const nextMonthKey = useMemo(() => {
+  // Determine all open invoice months where a 1x (non-installment) credit card purchase made TODAY would fall
+  const cardCycleInfo = useMemo(() => {
+    const now = new Date();
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const lastReal = realMonthsKeys[realMonthsKeys.length - 1] || 'Setembro 2026';
-    return getNextMonthLabel(lastReal);
-  }, [realMonthsKeys]);
+    const lastRealSort = getMonthSortValue(lastReal);
+
+    const activeCards =
+      creditCards && creditCards.length > 0
+        ? creditCards
+        : [
+            { name: 'Cartão ML', closingDay: 2, dueDay: 8 },
+            { name: 'Cartão Picpay PJ', closingDay: 29, dueDay: 5 },
+            { name: 'Cartão Nubank', closingDay: 3, dueDay: 10 },
+          ];
+
+    const byMonth: Record<string, string[]> = {};
+    let maxTargetMonth = getNextMonthLabel(lastReal);
+    let maxTargetSort = getMonthSortValue(maxTargetMonth);
+
+    activeCards.forEach((card) => {
+      const timing = calculateEffectiveInvoiceDate(
+        todayIso,
+        card.name,
+        'Cartão de Crédito',
+        activeCards
+      );
+      const targetMonth = timing.effectiveMonthLabel;
+      if (targetMonth) {
+        if (!byMonth[targetMonth]) {
+          byMonth[targetMonth] = [];
+        }
+        if (!byMonth[targetMonth].includes(card.name)) {
+          byMonth[targetMonth].push(card.name);
+        }
+        const sortVal = getMonthSortValue(targetMonth);
+        if (sortVal > maxTargetSort) {
+          maxTargetSort = sortVal;
+          maxTargetMonth = targetMonth;
+        }
+      }
+    });
+
+    const monthsToAdd: string[] = [];
+    let cursor = getNextMonthLabel(lastReal);
+    let safety = 0;
+    while (getMonthSortValue(cursor) <= maxTargetSort && safety < 6) {
+      if (getMonthSortValue(cursor) > lastRealSort) {
+        monthsToAdd.push(cursor);
+      }
+      cursor = getNextMonthLabel(cursor);
+      safety++;
+    }
+
+    return {
+      monthsToAdd,
+      byMonth,
+    };
+  }, [creditCards, realMonthsKeys]);
 
   // Determine which months to display in the chart based on chartTimeRange and includeNextMonth
   const selectedChartMonthsKeys = useMemo(() => {
@@ -264,12 +327,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       }
     }
 
-    if (includeNextMonth && nextMonthKey && !result.includes(nextMonthKey)) {
-      return [...result, nextMonthKey];
+    if (includeNextMonth && cardCycleInfo.monthsToAdd.length > 0) {
+      const merged = [...result];
+      cardCycleInfo.monthsToAdd.forEach((mKey) => {
+        if (!merged.includes(mKey)) {
+          merged.push(mKey);
+        }
+      });
+      return merged;
     }
 
     return result;
-  }, [chartTimeRange, includeNextMonth, nextMonthKey, realMonthsKeys, allChronologicalMonths, includeProjectedInChart, chartCustomMonths, chartCustomStart, chartCustomEnd]);
+  }, [chartTimeRange, includeNextMonth, cardCycleInfo, realMonthsKeys, allChronologicalMonths, includeProjectedInChart, chartCustomMonths, chartCustomStart, chartCustomEnd]);
 
   // Transform monthly data for chart with real-time transaction integration
   const chartData = useMemo(() => {
@@ -313,15 +382,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           : 0;
 
       return {
-        name: m.split(' ')[0], // "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro"
+        name: m.split(' ')[0], // "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro"
         fullName: m,
         Patrimonio: item.totalMoney,
         Renda: mIncome,
         Gastos: mExpenses,
         Sobra: mLeftover,
+        isCardCycleMonth: cardCycleInfo.monthsToAdd.includes(m),
+        activeCardsInCycle: cardCycleInfo.byMonth[m] || [],
       };
     });
-  }, [selectedChartMonthsKeys, effectiveMonthsData, recentTransactions]);
+  }, [selectedChartMonthsKeys, effectiveMonthsData, recentTransactions, cardCycleInfo]);
 
   // Date parsing helper for DD/MM/YYYY or YYYY-MM-DD
   const parseDateMs = (dateStr: string): number => {
@@ -689,18 +760,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {/* Filter of Months + Legend in header */}
             <div className="flex flex-wrap items-center gap-3">
               <div className="inline-flex items-center gap-1 p-1 bg-[#11310C]/5 rounded-2xl border border-[#11310C]/10 max-w-full flex-wrap sm:flex-nowrap">
-                {/* Toggle Next Month (Add Próx. Mês) */}
+                {/* Toggle Open Credit Card Cycle Months (+ Ciclo Cartão) */}
                 <button
                   type="button"
                   onClick={() => setIncludeNextMonth((prev) => !prev)}
-                  title={`Incluir ${nextMonthKey} (gastos de cartão já lançados)`}
-                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  title={`Exibir faturas onde compras 1x feitas hoje caem (${cardCycleInfo.monthsToAdd.map((m) => m.split(' ')[0]).join(' e ')})`}
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1 ${
                     includeNextMonth
                       ? 'bg-[#11310C] text-[#C4C240] shadow-xs'
                       : 'text-[#11310C]/80 hover:text-[#11310C]'
                   }`}
                 >
-                  Add Próx. Mês
+                  <CreditCard className="w-3 h-3" />
+                  <span>
+                    + Ciclo Cartão
+                    {includeNextMonth && cardCycleInfo.monthsToAdd.length > 0
+                      ? ` (${cardCycleInfo.monthsToAdd.map((m) => m.slice(0, 3)).join('/')})`
+                      : ''}
+                  </span>
                 </button>
 
                 {[
