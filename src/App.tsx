@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Header } from './components/Header';
 import { NavTabs } from './components/NavTabs';
@@ -29,7 +29,9 @@ import { Transaction, SpreadsheetConnection, FinancialGoal, Debtor, TaxSettings,
 import { initAuth, googleSignIn, logout, getAccessToken, parseAuthError, loginWithDirectProfile, loginAsCarlos, loginWithCustomEmail } from './lib/firebase';
 import { User } from 'firebase/auth';
 import { AuthAssistModal } from './components/AuthAssistModal';
-import { getSubscriptionPaymentKey } from './utils/subscriptions';
+import { PaymentRemindersModal } from './components/PaymentRemindersModal';
+import { buildPaymentReminders } from './utils/paymentReminders';
+import { getCardInvoicePaymentKey, getSubscriptionPaymentKey } from './utils/subscriptions';
 import { NewRecurringCharge } from './utils/sheetWriter';
 
 const getTabFromHash = (): string => {
@@ -109,6 +111,14 @@ export function App() {
   const [subscriptionPayments, setSubscriptionPayments] = useState<Record<string, SubscriptionMonthPayment>>(() =>
     loadFromStorage('strato_subscription_payments', {})
   );
+  const [cardInvoicePayments, setCardInvoicePayments] = useState<Record<string, boolean>>(() =>
+    loadFromStorage('strato_card_invoice_payments', {})
+  );
+  const [didInitialSync, setDidInitialSync] = useState(false);
+  const [showPaymentReminder, setShowPaymentReminder] = useState(false);
+  const reminderShown = useRef(false);
+  const cardInvoicePaymentsRef = useRef(cardInvoicePayments);
+  cardInvoicePaymentsRef.current = cardInvoicePayments;
   const [spreadsheets, setSpreadsheets] = useState<SpreadsheetConnection[]>(() =>
     loadFromStorage('strato_spreadsheets', MOCK_SPREADSHEETS)
   );
@@ -150,6 +160,7 @@ export function App() {
   useEffect(() => { localStorage.setItem('strato_goals', JSON.stringify(goals)); }, [goals]);
   useEffect(() => { localStorage.setItem('strato_subscriptions', JSON.stringify(subscriptions)); }, [subscriptions]);
   useEffect(() => { localStorage.setItem('strato_subscription_payments', JSON.stringify(subscriptionPayments)); }, [subscriptionPayments]);
+  useEffect(() => { localStorage.setItem('strato_card_invoice_payments', JSON.stringify(cardInvoicePayments)); }, [cardInvoicePayments]);
   useEffect(() => { localStorage.setItem('strato_spreadsheets', JSON.stringify(spreadsheets)); }, [spreadsheets]);
   useEffect(() => { localStorage.setItem('strato_tax_settings', JSON.stringify(taxSettings)); }, [taxSettings]);
 
@@ -219,7 +230,11 @@ export function App() {
         }
 
         if (data.cards && Array.isArray(data.cards) && data.cards.length > 0) {
-          setCreditCards(data.cards);
+          const month = getCurrentMonthLabel();
+          setCreditCards(data.cards.map((card: any) => ({
+            ...card,
+            isPaid: Boolean(cardInvoicePaymentsRef.current[getCardInvoicePaymentKey(card.name, month)]),
+          })));
         }
 
         if (data.subscriptions && Array.isArray(data.subscriptions) && data.subscriptions.length > 0) {
@@ -386,6 +401,8 @@ export function App() {
       }
     } catch (err) {
       console.error('Failed to sync live sheets:', err);
+    } finally {
+      setDidInitialSync(true);
     }
   }, [userAccessToken]);
 
@@ -495,6 +512,17 @@ export function App() {
   const monthsList = Object.keys(monthsData);
   const currentMonthSummary = monthsData[selectedMonth] || monthsData[getCurrentMonthLabel()] || monthsData['Setembro 2026'] || monthsData['Agosto 2026'];
 
+  const paymentReminders = useMemo(
+    () => buildPaymentReminders(new Date(), getCurrentMonthLabel(), subscriptions, subscriptionPayments, creditCards, cardInvoicePayments),
+    [subscriptions, subscriptionPayments, creditCards, cardInvoicePayments]
+  );
+  useEffect(() => {
+    if (didInitialSync && !reminderShown.current) {
+      reminderShown.current = true;
+      if (paymentReminders.length > 0) setShowPaymentReminder(true);
+    }
+  }, [didInitialSync, paymentReminders]);
+
   // Add new manual transaction and dynamically update monthly totals!
   const handleAddTransaction = (newTx: Omit<Transaction, 'id'>) => {
     const timing = calculateEffectiveInvoiceDate(
@@ -582,11 +610,12 @@ export function App() {
   };
 
   const handleToggleCardPaid = (cardId: string) => {
-    setCreditCards((prevCards) =>
-      prevCards.map((card) =>
-        card.id === cardId ? { ...card, isPaid: !card.isPaid } : card
-      )
-    );
+    const card = creditCards.find((item) => item.id === cardId);
+    if (!card) return;
+    const key = getCardInvoicePaymentKey(card.name, getCurrentMonthLabel());
+    const nextPaid = !cardInvoicePayments[key];
+    setCardInvoicePayments((prev) => ({ ...prev, [key]: nextPaid }));
+    setCreditCards((prevCards) => prevCards.map((item) => item.id === cardId ? { ...item, isPaid: nextPaid } : item));
   };
 
   const handleToggleSubscriptionStatus = (subId: string) => {
@@ -697,7 +726,10 @@ export function App() {
                 currentMonthData={currentMonthSummary}
                 allMonthsData={monthsData}
                 recentTransactions={transactions}
-                creditCards={creditCards}
+                creditCards={creditCards.map((card) => ({
+                  ...card,
+                  isPaid: Boolean(cardInvoicePayments[getCardInvoicePaymentKey(card.name, getCurrentMonthLabel())]),
+                }))}
                 subscriptions={subscriptions}
                 selectedMonth={selectedMonth}
                 onNavigateToTab={handleSelectTab}
@@ -814,6 +846,10 @@ export function App() {
         onAddTransaction={handleAddTransaction}
         selectedMonth={selectedMonth}
       />
+
+      {showPaymentReminder && (
+        <PaymentRemindersModal reminders={paymentReminders} onClose={() => setShowPaymentReminder(false)} />
+      )}
 
       {/* Google Auth Assistance Modal */}
       <AuthAssistModal
