@@ -65,6 +65,43 @@ export function parseCleanNumber(val: string): number {
   return isNaN(num) ? 0 : num;
 }
 
+const normalizeCardText = (value: string): string =>
+  (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const CARD_NAME_STOP_WORDS = new Set(['cartao', 'credito', 'credit', 'de', 'do', 'da', 'banco']);
+
+function matchCardForTransaction(accountName: string, paymentMethod: string, cards: any[]) {
+  const sources = [accountName, paymentMethod]
+    .map(normalizeCardText)
+    .filter(Boolean);
+  const candidates = cards.map((card) => {
+    const normalizedName = normalizeCardText(card.name || '');
+    const tokens = normalizedName.split(/\s+/).filter((token) => token.length > 1 && !CARD_NAME_STOP_WORDS.has(token));
+    if (!tokens.length) return { card, score: 0 };
+    const exactMatch = sources.some((source) => source === normalizedName || ` ${source} `.includes(` ${normalizedName} `));
+    if (exactMatch) return { card, score: 2 };
+    const matchingTokens = tokens.filter((token) => sources.some((source) => (` ${source} `).includes(` ${token} `)));
+    return { card, score: matchingTokens.length / tokens.length };
+  }).filter((candidate) => candidate.score > 0);
+  candidates.sort((a, b) => b.score - a.score);
+  if (!candidates.length || candidates[0].score < 0.5) return undefined;
+  if (candidates.length > 1 && candidates[0].score === candidates[1].score) return undefined;
+  return candidates[0].card;
+}
+
+function findCardColumn(headers: string[], aliases: string[]): number {
+  const normalizedAliases = aliases.map(normalizeCardText);
+  return headers.findIndex((header) => {
+    const normalizedHeader = normalizeCardText(header);
+    return normalizedAliases.some((alias) => normalizedHeader === alias || normalizedHeader.includes(alias));
+  });
+}
+
 export const SHEETS_CONFIG = [
   {
     id: 'sheet-extrato',
@@ -222,11 +259,7 @@ export function calculateEffectiveInvoiceDate(
     }
 
     if (cleanIso) {
-      const matchedCard = cards.find((c) => {
-        const cName = (c.name || '').toLowerCase();
-        if (!cName) return false;
-        return accountLower.includes(cName) || methodLower.includes(cName) || cName.includes(accountLower);
-      });
+      const matchedCard = matchCardForTransaction(accountName, paymentMethod, cards);
 
       return {
         isCreditCard: true,
@@ -259,14 +292,10 @@ export function calculateEffectiveInvoiceDate(
   }
 
   // Find matching card in cards list or default to closing: 2, due: 8 (Mercado Livre pattern)
-  const matchedCard = cards.find((c) => {
-    const cName = (c.name || '').toLowerCase();
-    if (!cName) return false;
-    return accountLower.includes(cName) || methodLower.includes(cName) || cName.includes(accountLower);
-  }) || cards[0] || { name: 'Cartão de Crédito', closingDay: 2, dueDay: 8 };
+  const matchedCard = matchCardForTransaction(accountName, paymentMethod, cards);
 
-  const closingDay = matchedCard.closingDay || 2;
-  const dueDay = matchedCard.dueDay || 8;
+  const closingDay = matchedCard?.closingDay || 2;
+  const dueDay = matchedCard?.dueDay || 8;
 
   const parts = purchaseDateStr.split('-');
   let year = parseInt(parts[0], 10) || 2026;
@@ -294,7 +323,7 @@ export function calculateEffectiveInvoiceDate(
 
   return {
     isCreditCard: true,
-    cardName: matchedCard.name,
+    cardName: matchedCard?.name,
     closingDay,
     dueDay,
     purchaseDate: purchaseDateStr,
@@ -516,20 +545,32 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
         }
 
         if (sheet.id === 'sheet-cartoes') {
+          const headers = rows[0] || [];
+          const nameColumn = findCardColumn(headers, ['cartao', 'nome do cartao', 'nome', 'descricao']);
+          const closingColumn = findCardColumn(headers, ['fechamento', 'fecha', 'dia de fechamento', 'dia fechamento']);
+          const dueColumn = findCardColumn(headers, ['vencimento', 'vence', 'dia de vencimento', 'dia vencimento']);
+          const limitColumn = findCardColumn(headers, ['limite', 'limite total', 'limite do cartao', 'valor do limite']);
+          const resolveColumn = (column: number, fallback: number) => column >= 0 ? column : fallback;
+          const cardNameColumn = resolveColumn(nameColumn, 0);
+          const cardClosingColumn = resolveColumn(closingColumn, 1);
+          const cardDueColumn = resolveColumn(dueColumn, 2);
+          const cardLimitColumn = resolveColumn(limitColumn, 3);
+
           dataRows.forEach((cols, index) => {
-            if (!cols[0]) return;
-            const name = cols[0];
-            const closingDay = parseInt(cols[1] || '1', 10) || 1;
-            const dueDay = parseInt(cols[2] || '10', 10) || 10;
+            const name = (cols[cardNameColumn] || '').trim();
+            if (!name) return;
+            const closingDay = parseInt((cols[cardClosingColumn] || '').replace(/\D/g, ''), 10) || 1;
+            const dueDay = parseInt((cols[cardDueColumn] || '').replace(/\D/g, ''), 10) || 10;
+            const limit = parseCleanNumber(cols[cardLimitColumn] || '');
 
             parsedCards.push({
               id: `card-sheet-${index}`,
               name,
-              bank: name.includes('Nubank') ? 'Nubank' : name.includes('PicPay') ? 'PicPay' : 'Mercado Pago',
+              bank: /nubank/i.test(name) ? 'Nubank' : /picpay/i.test(name) ? 'PicPay' : /bradesco/i.test(name) ? 'Bradesco' : /amazon/i.test(name) ? 'Amazon' : 'Cartão',
               closingDay,
               dueDay,
               currentInvoice: 0,
-              limit: 25000,
+              limit,
               status: 'aberta',
             });
           });
