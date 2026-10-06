@@ -25,10 +25,12 @@ import {
   INITIAL_DEBTORS,
   INITIAL_FINANCIAL_GOALS,
 } from './data/mockData';
-import { Transaction, SpreadsheetConnection, FinancialGoal, Debtor, TaxSettings, MonthSummaryData, AuthErrorInfo, UserProfile } from './types';
+import { Transaction, SpreadsheetConnection, FinancialGoal, Debtor, TaxSettings, MonthSummaryData, AuthErrorInfo, UserProfile, Subscription, SubscriptionMonthPayment } from './types';
 import { initAuth, googleSignIn, logout, getAccessToken, parseAuthError, loginWithDirectProfile, loginAsCarlos, loginWithCustomEmail } from './lib/firebase';
 import { User } from 'firebase/auth';
 import { AuthAssistModal } from './components/AuthAssistModal';
+import { getSubscriptionPaymentKey } from './utils/subscriptions';
+import { NewRecurringCharge } from './utils/sheetWriter';
 
 const getTabFromHash = (): string => {
   if (typeof window === 'undefined') return 'dashboard';
@@ -104,6 +106,9 @@ export function App() {
   const [subscriptions, setSubscriptions] = useState(() =>
     loadFromStorage('strato_subscriptions', MOCK_SUBSCRIPTIONS)
   );
+  const [subscriptionPayments, setSubscriptionPayments] = useState<Record<string, SubscriptionMonthPayment>>(() =>
+    loadFromStorage('strato_subscription_payments', {})
+  );
   const [spreadsheets, setSpreadsheets] = useState<SpreadsheetConnection[]>(() =>
     loadFromStorage('strato_spreadsheets', MOCK_SPREADSHEETS)
   );
@@ -144,6 +149,7 @@ export function App() {
   useEffect(() => { localStorage.setItem('strato_debtors', JSON.stringify(debtors)); }, [debtors]);
   useEffect(() => { localStorage.setItem('strato_goals', JSON.stringify(goals)); }, [goals]);
   useEffect(() => { localStorage.setItem('strato_subscriptions', JSON.stringify(subscriptions)); }, [subscriptions]);
+  useEffect(() => { localStorage.setItem('strato_subscription_payments', JSON.stringify(subscriptionPayments)); }, [subscriptionPayments]);
   useEffect(() => { localStorage.setItem('strato_spreadsheets', JSON.stringify(spreadsheets)); }, [spreadsheets]);
   useEffect(() => { localStorage.setItem('strato_tax_settings', JSON.stringify(taxSettings)); }, [taxSettings]);
 
@@ -217,7 +223,11 @@ export function App() {
         }
 
         if (data.subscriptions && Array.isArray(data.subscriptions) && data.subscriptions.length > 0) {
-          setSubscriptions(data.subscriptions);
+          const sheetSubscriptionNames = new Set(data.subscriptions.map((sub: Subscription) => sub.serviceName.trim().toLowerCase()));
+          setSubscriptions((prev) => [
+            ...data.subscriptions,
+            ...prev.filter((sub) => sub.id.startsWith('sub-local-') && !sheetSubscriptionNames.has(sub.serviceName.trim().toLowerCase())),
+          ]);
         }
 
         if (data.debtors && Array.isArray(data.debtors) && data.debtors.length > 0) {
@@ -592,6 +602,51 @@ export function App() {
     );
   };
 
+  const handleUpdateSubscriptionPayment = (serviceName: string, month: string, update: Partial<SubscriptionMonthPayment>) => {
+    const key = getSubscriptionPaymentKey(serviceName, month);
+    setSubscriptionPayments((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], ...update },
+    }));
+  };
+
+  const handleAddRecurringCharge = async (charge: NewRecurringCharge) => {
+    const accessToken = userAccessToken || getAccessToken();
+    if (!accessToken || accessToken === 'local-authorized-session') {
+      throw new Error('Entre com sua conta Google para salvar a nova cobrança na planilha.');
+    }
+
+    const response = await fetch('/api/subscriptions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(charge),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      const reason = result.error || 'Não foi possível gravar a cobrança.';
+      if (response.status === 401 || response.status === 403 || response.status === 502) {
+        throw new Error(`${reason} Se a conta já estiver conectada, saia e entre novamente para conceder a permissão de edição da planilha.`);
+      }
+      throw new Error(reason);
+    }
+
+    const newSubscription: Subscription = {
+      id: `sub-local-${Date.now()}`,
+      status: 'ativa',
+      serviceName: charge.serviceName,
+      category: 'Contas Fixas',
+      monthlyPrice: charge.monthlyPrice,
+      paymentCard: charge.paymentMethod,
+      renewalDay: charge.renewalDay,
+      active: true,
+    };
+    setSubscriptions((prev) => [...prev, newSubscription]);
+    await fetchLiveSheets(accessToken);
+  };
+
   const handleAddSpreadsheet = (sheet: SpreadsheetConnection) => {
     setSpreadsheets((prev) => [sheet, ...prev]);
   };
@@ -682,6 +737,10 @@ export function App() {
                 onToggleSubscriptionStatus={handleToggleSubscriptionStatus}
                 onUpdateCardLimit={handleUpdateCardLimit}
                 onToggleCardPaid={handleToggleCardPaid}
+                selectedMonth={selectedMonth}
+                subscriptionPayments={subscriptionPayments}
+                onUpdateSubscriptionPayment={handleUpdateSubscriptionPayment}
+                onAddRecurringCharge={handleAddRecurringCharge}
               />
             )}
 
@@ -773,4 +832,3 @@ export function App() {
 }
 
 export default App;
-

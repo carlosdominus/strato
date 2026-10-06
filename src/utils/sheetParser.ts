@@ -593,6 +593,7 @@ export async function parseAndFetchAllSheets(authHeader?: string) {
               serviceName,
               category: 'Recorrentes & Fixos',
               monthlyPrice,
+              personalMonthlyPrice: /meli\s*\+/i.test(serviceName) ? 25 : undefined,
               paymentCard,
               renewalDay,
               active: isActive,

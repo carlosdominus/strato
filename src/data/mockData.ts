@@ -203,6 +203,7 @@ export const INITIAL_SUBSCRIPTIONS: Subscription[] = [
     serviceName: 'Meli+',
     category: 'Benefícios & Mercado Livre',
     monthlyPrice: 98.90,
+    personalMonthlyPrice: 25,
     paymentCard: 'Cartão Picpay PJ',
     renewalDay: 21,
     active: true,
@@ -303,6 +304,5 @@ export const MOCK_SPREADSHEETS = INITIAL_SPREADSHEETS;
 export const MOCK_BANK_ACCOUNTS = INITIAL_BANK_ACCOUNTS;
 export const MOCK_DEBTORS = INITIAL_DEBTORS;
 export const MOCK_FINANCIAL_GOALS = INITIAL_FINANCIAL_GOALS;
-
 
 

@@ -23,8 +23,10 @@ import {
   Edit2,
   Check,
 } from 'lucide-react';
-import { CreditCardSheet, Subscription } from '../types';
+import { CreditCardSheet, Subscription, SubscriptionMonthPayment } from '../types';
 import { formatCurrency } from '../utils/formatters';
+import { getSubscriptionPaymentKey } from '../utils/subscriptions';
+import { NewRecurringCharge } from '../utils/sheetWriter';
 
 const getServiceIcon = (serviceName: string, category?: string) => {
   const name = (serviceName || '').toLowerCase();
@@ -66,6 +68,11 @@ const getServiceIcon = (serviceName: string, category?: string) => {
   return <Zap className="w-5 h-5" />;
 };
 
+const getTodayIsoDate = () => {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+};
+
 interface CartoesAssinaturasViewProps {
   creditCards: CreditCardSheet[];
   subscriptions: Subscription[];
@@ -73,6 +80,10 @@ interface CartoesAssinaturasViewProps {
   onToggleSubscriptionStatus?: (id: string) => void;
   onUpdateCardLimit?: (cardId: string, newLimit: number) => void;
   onToggleCardPaid?: (cardId: string) => void;
+  selectedMonth: string;
+  subscriptionPayments: Record<string, SubscriptionMonthPayment>;
+  onUpdateSubscriptionPayment?: (subscriptionId: string, month: string, update: Partial<SubscriptionMonthPayment>) => void;
+  onAddRecurringCharge: (charge: NewRecurringCharge) => Promise<void>;
 }
 
 export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
@@ -82,9 +93,22 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
   onToggleSubscriptionStatus,
   onUpdateCardLimit,
   onToggleCardPaid,
+  selectedMonth,
+  subscriptionPayments,
+  onUpdateSubscriptionPayment,
+  onAddRecurringCharge,
 }) => {
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [tempLimit, setTempLimit] = useState<string>('');
+  const [paidDateDrafts, setPaidDateDrafts] = useState<Record<string, string>>({});
+  const [contributionDateDrafts, setContributionDateDrafts] = useState<Record<string, string>>({});
+  const [isAddSubscriptionOpen, setIsAddSubscriptionOpen] = useState(false);
+  const [newSubscriptionName, setNewSubscriptionName] = useState('');
+  const [newSubscriptionAmount, setNewSubscriptionAmount] = useState('');
+  const [newSubscriptionMethod, setNewSubscriptionMethod] = useState('Pix');
+  const [newSubscriptionDay, setNewSubscriptionDay] = useState('');
+  const [isSavingSubscription, setIsSavingSubscription] = useState(false);
+  const [subscriptionFormError, setSubscriptionFormError] = useState('');
 
   // Sort active subscriptions to the top
   const sortedSubscriptions = [...subscriptions].sort((a, b) => {
@@ -97,8 +121,9 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
   const pausedSubs = sortedSubscriptions.filter((s) => s.status === 'pausada' || !s.active);
 
   const totalInvoices = creditCards.reduce((acc, c) => acc + (c.isPaid ? 0 : c.currentInvoice), 0);
-  const totalSubscriptionsMonthly = activeSubs.reduce((acc, s) => acc + s.monthlyPrice, 0);
-  const totalPausedMonthly = pausedSubs.reduce((acc, s) => acc + s.monthlyPrice, 0);
+  const getPersonalMonthlyPrice = (sub: Subscription) => sub.personalMonthlyPrice ?? sub.monthlyPrice;
+  const totalSubscriptionsMonthly = activeSubs.reduce((acc, s) => acc + getPersonalMonthlyPrice(s), 0);
+  const totalPausedMonthly = pausedSubs.reduce((acc, s) => acc + getPersonalMonthlyPrice(s), 0);
 
   const handleStartEditLimit = (card: CreditCardSheet) => {
     setEditingCardId(card.id);
@@ -111,6 +136,39 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
       onUpdateCardLimit(cardId, num);
     }
     setEditingCardId(null);
+  };
+
+  const handleAddSubscription = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const normalizedAmount = newSubscriptionAmount.includes(',') && newSubscriptionAmount.includes('.')
+      ? newSubscriptionAmount.replace(/\./g, '').replace(',', '.')
+      : newSubscriptionAmount.replace(',', '.');
+    const monthlyPrice = Number(normalizedAmount);
+    const renewalDay = Number(newSubscriptionDay);
+    if (!newSubscriptionName.trim() || !Number.isFinite(monthlyPrice) || monthlyPrice <= 0 || !Number.isInteger(renewalDay) || renewalDay < 1 || renewalDay > 31) {
+      setSubscriptionFormError('Preencha nome, valor mensal e dia de cobrança (1 a 31).');
+      return;
+    }
+
+    setIsSavingSubscription(true);
+    setSubscriptionFormError('');
+    try {
+      await onAddRecurringCharge({
+        serviceName: newSubscriptionName.trim(),
+        monthlyPrice,
+        paymentMethod: newSubscriptionMethod.trim() || 'Pix',
+        renewalDay,
+      });
+      setNewSubscriptionName('');
+      setNewSubscriptionAmount('');
+      setNewSubscriptionMethod('Pix');
+      setNewSubscriptionDay('');
+      setIsAddSubscriptionOpen(false);
+    } catch (error: any) {
+      setSubscriptionFormError(error?.message || 'Não foi possível gravar na planilha.');
+    } finally {
+      setIsSavingSubscription(false);
+    }
   };
 
   return (
@@ -195,7 +253,7 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <div className="w-8 h-8 rounded-xl bg-[#11310C] text-[#C4C240] flex items-center justify-center">
                       <CreditCard className="w-4 h-4" />
                     </div>
@@ -313,14 +371,27 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
               Assinaturas com status <span className="font-bold text-emerald-800">Ativa</span> ficam priorizadas no topo e são cobradas no extrato. Assinaturas <span className="font-bold text-amber-800">Pausadas</span> ficam suspensas.
             </p>
           </div>
-          <span className="text-xs font-extrabold text-[#11310C]">
-            Custo Fixo Ativo: {formatCurrency(totalSubscriptionsMonthly)}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-extrabold text-[#11310C]">
+              Custo Fixo Ativo: {formatCurrency(totalSubscriptionsMonthly)}
+            </span>
+            <button
+              type="button"
+              onClick={() => { setSubscriptionFormError(''); setIsAddSubscriptionOpen(true); }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#11310C] text-[#C4C240] text-[10px] font-extrabold cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" /> Adicionar assinatura
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
           {sortedSubscriptions.map((sub) => {
             const isActive = sub.status === 'ativa' || sub.active;
+            const paymentRecordKey = getSubscriptionPaymentKey(sub.serviceName, selectedMonth);
+            const paymentRecord = subscriptionPayments[paymentRecordKey] || {};
+            const personalMonthlyPrice = getPersonalMonthlyPrice(sub);
+            const sharedMonthlyAmount = Math.max(0, sub.monthlyPrice - personalMonthlyPrice);
 
             return (
               <div
@@ -348,9 +419,11 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
 
                   <div className="text-right">
                     <span className="font-extrabold text-base text-[#11310C] block">
-                      {formatCurrency(sub.monthlyPrice)}
+                      {formatCurrency(personalMonthlyPrice)}
                     </span>
-                    <span className="text-[10px] text-[#11310C]/60 font-semibold">por mês</span>
+                    <span className="text-[10px] text-[#11310C]/60 font-semibold">
+                      {personalMonthlyPrice < sub.monthlyPrice ? `sua parte de ${formatCurrency(sub.monthlyPrice)}` : 'por mês'}
+                    </span>
                   </div>
                 </div>
 
@@ -382,12 +455,145 @@ export const CartoesAssinaturasView: React.FC<CartoesAssinaturasViewProps> = ({
                     )}
                   </div>
                 </div>
+
+                <div className="space-y-2 border-t border-[#11310C]/10 pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-[#11310C]">Pagamento de {selectedMonth}</span>
+                    <span className={`text-[10px] font-extrabold uppercase ${paymentRecord.paidDate ? 'text-emerald-800' : 'text-amber-800'}`}>
+                      {paymentRecord.paidDate ? `Pago em ${paymentRecord.paidDate.split('-').reverse().join('/')}` : 'Ainda não pago'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      aria-label={`Data do pagamento de ${sub.serviceName}`}
+                      value={paidDateDrafts[paymentRecordKey] ?? paymentRecord.paidDate ?? ''}
+                      onChange={(e) => setPaidDateDrafts((prev) => ({ ...prev, [paymentRecordKey]: e.target.value }))}
+                      className="min-w-0 flex-1 px-2.5 py-2 rounded-xl bg-white border border-[#11310C]/15 text-xs text-[#11310C]"
+                    />
+                    <button
+                      type="button"
+                      disabled={!onUpdateSubscriptionPayment}
+                      onClick={() => {
+                        if (paymentRecord.paidDate) {
+                          onUpdateSubscriptionPayment?.(sub.serviceName, selectedMonth, { paidDate: undefined });
+                          setPaidDateDrafts((prev) => ({ ...prev, [paymentRecordKey]: '' }));
+                        } else {
+                          onUpdateSubscriptionPayment?.(sub.serviceName, selectedMonth, {
+                            paidDate: paidDateDrafts[paymentRecordKey] || getTodayIsoDate(),
+                          });
+                        }
+                      }}
+                      className={`shrink-0 px-3 py-2 rounded-xl text-[10px] font-extrabold cursor-pointer disabled:opacity-50 ${paymentRecord.paidDate ? 'bg-amber-100 text-amber-900' : 'bg-[#11310C] text-[#C4C240]'}`}
+                    >
+                      {paymentRecord.paidDate ? 'Desmarcar' : 'Marcar pago'}
+                    </button>
+                    {paymentRecord.paidDate && paidDateDrafts[paymentRecordKey] && paidDateDrafts[paymentRecordKey] !== paymentRecord.paidDate && (
+                      <button
+                        type="button"
+                        onClick={() => onUpdateSubscriptionPayment?.(sub.serviceName, selectedMonth, { paidDate: paidDateDrafts[paymentRecordKey] })}
+                        className="shrink-0 px-3 py-2 rounded-xl bg-white border border-[#11310C]/15 text-[10px] font-extrabold text-[#11310C] cursor-pointer"
+                      >
+                        Salvar data
+                      </button>
+                    )}
+                  </div>
+
+                  {sharedMonthlyAmount > 0 && (
+                    <div className="rounded-2xl bg-[#11310C]/5 p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-bold text-[#11310C]">
+                          Ajuda das outras pessoas ({formatCurrency(sharedMonthlyAmount)})
+                        </span>
+                        <span className={`text-[10px] font-extrabold ${paymentRecord.contributionReceived ? 'text-emerald-800' : 'text-amber-800'}`}>
+                          {paymentRecord.contributionReceived ? 'Recebida' : 'Pendente'}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="date"
+                          aria-label={`Data em que recebeu a ajuda de ${sub.serviceName}`}
+                          value={contributionDateDrafts[paymentRecordKey] ?? paymentRecord.contributionDate ?? ''}
+                          onChange={(e) => setContributionDateDrafts((prev) => ({ ...prev, [paymentRecordKey]: e.target.value }))}
+                          className="min-w-0 flex-1 px-2.5 py-2 rounded-xl bg-white border border-[#11310C]/15 text-xs text-[#11310C]"
+                        />
+                        <button
+                          type="button"
+                          disabled={!onUpdateSubscriptionPayment}
+                          onClick={() => {
+                            if (paymentRecord.contributionReceived) {
+                              onUpdateSubscriptionPayment?.(sub.serviceName, selectedMonth, {
+                                contributionReceived: false,
+                                contributionDate: undefined,
+                              });
+                              setContributionDateDrafts((prev) => ({ ...prev, [paymentRecordKey]: '' }));
+                            } else {
+                              onUpdateSubscriptionPayment?.(sub.serviceName, selectedMonth, {
+                                contributionReceived: true,
+                                contributionDate: contributionDateDrafts[paymentRecordKey] || getTodayIsoDate(),
+                              });
+                            }
+                          }}
+                          className="shrink-0 px-3 py-2 rounded-xl bg-white border border-[#11310C]/15 text-[10px] font-extrabold text-[#11310C] cursor-pointer disabled:opacity-50"
+                        >
+                          {paymentRecord.contributionReceived ? 'Desmarcar' : 'Marcar recebida'}
+                        </button>
+                        {paymentRecord.contributionReceived && contributionDateDrafts[paymentRecordKey] && contributionDateDrafts[paymentRecordKey] !== paymentRecord.contributionDate && (
+                          <button
+                            type="button"
+                            onClick={() => onUpdateSubscriptionPayment?.(sub.serviceName, selectedMonth, { contributionDate: contributionDateDrafts[paymentRecordKey] })}
+                            className="shrink-0 px-3 py-2 rounded-xl bg-white border border-[#11310C]/15 text-[10px] font-extrabold text-[#11310C] cursor-pointer"
+                          >
+                            Salvar data
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
       </div>
+      {isAddSubscriptionOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <form onSubmit={handleAddSubscription} className="w-full max-w-lg rounded-3xl bg-[#FAFBF6] p-6 sm:p-8 shadow-2xl space-y-5">
+            <div>
+              <h3 className="text-xl font-extrabold text-[#11310C]">Adicionar assinatura ou conta fixa</h3>
+              <p className="mt-1 text-xs text-[#11310C]/65">Ao salvar, o app acrescenta a cobrança na planilha e ela passa a entrar nas previsões mensais.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="text-[11px] font-bold text-[#11310C]/70">
+                Nome da conta
+                <input required value={newSubscriptionName} onChange={(e) => setNewSubscriptionName(e.target.value)} placeholder="Ex.: Conta TIM" className="mt-1 w-full rounded-xl border border-[#11310C]/20 bg-white px-3 py-2.5 text-sm text-[#11310C]" />
+              </label>
+              <label className="text-[11px] font-bold text-[#11310C]/70">
+                Valor mensal (R$)
+                <input required type="text" inputMode="decimal" value={newSubscriptionAmount} onChange={(e) => setNewSubscriptionAmount(e.target.value)} placeholder="0,00" className="mt-1 w-full rounded-xl border border-[#11310C]/20 bg-white px-3 py-2.5 text-sm text-[#11310C]" />
+              </label>
+              <label className="text-[11px] font-bold text-[#11310C]/70">
+                Forma de pagamento
+                <input required value={newSubscriptionMethod} onChange={(e) => setNewSubscriptionMethod(e.target.value)} placeholder="Pix, cartão..." className="mt-1 w-full rounded-xl border border-[#11310C]/20 bg-white px-3 py-2.5 text-sm text-[#11310C]" />
+              </label>
+              <label className="text-[11px] font-bold text-[#11310C]/70">
+                Dia de cobrança
+                <input required type="number" min="1" max="31" step="1" value={newSubscriptionDay} onChange={(e) => setNewSubscriptionDay(e.target.value)} placeholder="1–31" className="mt-1 w-full rounded-xl border border-[#11310C]/20 bg-white px-3 py-2.5 text-sm text-[#11310C]" />
+              </label>
+            </div>
+
+            {subscriptionFormError && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">{subscriptionFormError}</p>}
+
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setIsAddSubscriptionOpen(false)} disabled={isSavingSubscription} className="px-4 py-2.5 rounded-xl border border-[#11310C]/20 text-xs font-extrabold text-[#11310C] cursor-pointer disabled:opacity-50">Cancelar</button>
+              <button type="submit" disabled={isSavingSubscription} className="px-4 py-2.5 rounded-xl bg-[#11310C] text-[#C4C240] text-xs font-extrabold cursor-pointer disabled:opacity-50">
+                {isSavingSubscription ? 'Salvando…' : 'Salvar na planilha'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 };
-

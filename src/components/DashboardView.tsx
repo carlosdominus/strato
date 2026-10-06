@@ -400,8 +400,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           const alreadyInExtrato =
             subNameLower &&
             monthTxDescriptions.some((desc) => desc.includes(subNameLower));
-          if (!alreadyInExtrato && sub.monthlyPrice > 0) {
-            subscriptionsTotal += sub.monthlyPrice;
+          const personalMonthlyPrice = sub.personalMonthlyPrice ?? sub.monthlyPrice;
+          if (!alreadyInExtrato && personalMonthlyPrice > 0) {
+            subscriptionsTotal += personalMonthlyPrice;
             subscriptionNames.push(sub.serviceName);
           }
         });

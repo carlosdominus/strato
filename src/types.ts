@@ -43,6 +43,13 @@ export interface Subscription {
   renewalDay: number; // Coluna E: data de cobrança
   active: boolean; // Computed from status === 'ativa'
   cancelRecommendation?: boolean;
+  personalMonthlyPrice?: number;
+}
+
+export interface SubscriptionMonthPayment {
+  paidDate?: string;
+  contributionReceived?: boolean;
+  contributionDate?: string;
 }
 
 export interface Investment {
@@ -189,4 +196,3 @@ export interface UserProfile {
   photoURL: string | null;
   isSimulated?: boolean;
 }
-
