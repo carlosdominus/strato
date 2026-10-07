@@ -71,6 +71,35 @@ const getNextMonthLabel = (monthStr: string): string => {
   return `${MONTH_NAMES_FULL[monthNum]} ${year}`;
 };
 
+const subscriptionIsAllocatedToMonth = (
+  subscription: Subscription,
+  targetMonth: string,
+  creditCards: CreditCardSheet[]
+): boolean => {
+  const [monthName, yearText] = targetMonth.trim().split(/\s+/);
+  const monthNumber = MONTH_ORDER[(monthName || '').toLowerCase()];
+  const year = Number(yearText);
+  if (!monthNumber || !Number.isFinite(year)) return false;
+
+  // A card charge can land in its due month or as much as two months later
+  // when the charge happens after the closing date and the due day is earlier.
+  for (let monthsBack = 0; monthsBack <= 2; monthsBack++) {
+    const chargeMonth = new Date(year, monthNumber - 1 - monthsBack, 1);
+    const lastDayOfChargeMonth = new Date(chargeMonth.getFullYear(), chargeMonth.getMonth() + 1, 0).getDate();
+    const chargeDay = Math.min(Math.max(Math.floor(subscription.renewalDay || 1), 1), lastDayOfChargeMonth);
+    const purchaseDate = `${chargeMonth.getFullYear()}-${String(chargeMonth.getMonth() + 1).padStart(2, '0')}-${String(chargeDay).padStart(2, '0')}`;
+    const timing = calculateEffectiveInvoiceDate(
+      purchaseDate,
+      subscription.paymentCard || 'Geral',
+      subscription.paymentCard || 'PIX',
+      creditCards
+    );
+    if (timing.effectiveMonthLabel.toLowerCase() === targetMonth.toLowerCase()) return true;
+  }
+
+  return false;
+};
+
 const CustomAreaTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const dataPoint = payload[0]?.payload;
@@ -101,7 +130,7 @@ const CustomAreaTooltip = ({ active, payload, label }: any) => {
             </p>
           ))}
         </div>
-        {isCardCycleMonth && subscriptionsTotal > 0 && (
+        {subscriptionsTotal > 0 && (
           <div className="pt-1.5 mt-1 border-t border-white/10 text-[10px] text-white/75 flex items-center justify-between gap-2">
             <span>Assinaturas ({subscriptionNames.join(', ')}):</span>
             <span className="font-bold text-[#C4C240]">+{formatCurrency(subscriptionsTotal)}</span>
@@ -368,7 +397,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       // Calculate real-time income & expense from recentTransactions if not yet in summary
       let mIncome = item.totalIncome || 0;
       let mExpenses = item.totalExpenses || 0;
-      const monthTxDescriptions: string[] = [];
+      const monthTransactions: Transaction[] = [];
 
       if (recentTransactions && recentTransactions.length > 0) {
         let txIncome = 0;
@@ -378,9 +407,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           const allocated = getTransactionAllocatedMonthLabel(tx);
           if (allocated === m) {
             hasTx = true;
-            if (tx.description) {
-              monthTxDescriptions.push(tx.description.toLowerCase());
-            }
+            monthTransactions.push(tx);
             if (tx.type === 'income') txIncome += tx.amount;
             else if (tx.type === 'expense') txExpenses += tx.amount;
           }
@@ -391,23 +418,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         }
       }
 
-      // Sum active recurring subscriptions into the credit card cycle months (avoiding duplicates if already in extrato)
+      // Add active subscriptions to every month their charge would belong to,
+      // while avoiding duplicates already present in the transaction sheet.
       let subscriptionsTotal = 0;
       const subscriptionNames: string[] = [];
-      if (isCardCycleMonth && activeSubs.length > 0) {
-        activeSubs.forEach((sub) => {
-          const subNameLower = (sub.serviceName || '').toLowerCase().trim();
-          const alreadyInExtrato =
-            subNameLower &&
-            monthTxDescriptions.some((desc) => desc.includes(subNameLower));
-          const personalMonthlyPrice = sub.personalMonthlyPrice ?? sub.monthlyPrice;
-          if (!alreadyInExtrato && personalMonthlyPrice > 0) {
-            subscriptionsTotal += personalMonthlyPrice;
-            subscriptionNames.push(sub.serviceName);
+      activeSubs.forEach((sub) => {
+        const subNameLower = (sub.serviceName || '').toLowerCase().trim();
+        if (!subNameLower) return;
+
+        const matchingTransactions = monthTransactions.filter(
+          (tx) => tx.type === 'expense' && (tx.description || '').toLowerCase().includes(subNameLower)
+        );
+        const personalMonthlyPrice = sub.personalMonthlyPrice ?? sub.monthlyPrice;
+
+        if (matchingTransactions.length > 0) {
+          // Shared subscriptions are charged at the full price in the ledger;
+          // show only the user's share when that full charge is recognizable.
+          const matchingTotal = matchingTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+          if (
+            personalMonthlyPrice < sub.monthlyPrice &&
+            Math.abs(matchingTotal - sub.monthlyPrice) <= 0.02
+          ) {
+            mExpenses += personalMonthlyPrice - matchingTotal;
           }
-        });
-        mExpenses += subscriptionsTotal;
-      }
+          return;
+        }
+
+        if (personalMonthlyPrice > 0 && subscriptionIsAllocatedToMonth(sub, m, creditCards)) {
+          subscriptionsTotal += personalMonthlyPrice;
+          subscriptionNames.push(sub.serviceName);
+        }
+      });
+      mExpenses += subscriptionsTotal;
 
       // If the month has no income registered yet (e.g. next month showing credit card expenses), keep leftover at 0
       const mLeftover =
@@ -430,7 +472,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         subscriptionNames,
       };
     });
-  }, [selectedChartMonthsKeys, effectiveMonthsData, recentTransactions, cardCycleInfo, subscriptions]);
+  }, [selectedChartMonthsKeys, effectiveMonthsData, recentTransactions, cardCycleInfo, subscriptions, creditCards]);
 
   // Date parsing helper for DD/MM/YYYY or YYYY-MM-DD
   const parseDateMs = (dateStr: string): number => {
